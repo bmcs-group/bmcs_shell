@@ -1,8 +1,6 @@
 """
 
 """
-from mayavi import mlab
-mlab.init_notebook()
 import bmcs_utils.api as bu
 import sympy as sp
 
@@ -33,9 +31,9 @@ class WBElemSymb(bu.SymbExpr):
 
     u_2_, u_3_ = sp.solve({eq_U, eq_UW}, [u_2, u_3])
 
-    u_2 = u_2_[1]
+    # u_2 = u_2_[1]
     u_3 = u_3_[1]
-    # u_2 = u_2_[0]
+    u_2 = u_2_[0]
     # u_3 = u_3_[0]
 
     symb_model_params = ['a', 'b', 'c']
@@ -81,7 +79,7 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
             [0,0,0], # 0 point
             [self.a, u_2, u_3], #U++
             [-self.a,u_2, u_3], #U-+
-            [self.a,-u_2, u_3], #U+=
+            [self.a,-u_2, u_3], #U+-
             [-self.a,-u_2, u_3], #U--
             [self.c * np.cos(alpha), 0, self.c * np.sin(alpha)], # W0+
             [-self.c * np.cos(alpha), 0, self.c * np.sin(alpha)] # W0-
@@ -89,7 +87,7 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
         )
 
     I_Fi = tr.Property
-    '''Mapping '''
+    '''Triangle mapping '''
     @tr.cached_property
     def _get_I_Fi(self):
         return np.array([[0,1,2],
@@ -99,16 +97,6 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
                          [0,3,5],
                          [0,4,6],
                          ])
-
-    I_Li = tr.Property
-    '''Mapping '''
-    @tr.cached_property
-    def _get_I_Li(self):
-        return np.array([[0,1],
-                         [1,2],
-                         [2,3],
-                         [3,0],
-                         [2,0]])
 
     def subplots(self,fig):
         ax = fig.add_subplot(1, 1, 1, projection='3d')
