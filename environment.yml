@@ -15,4 +15,3 @@ dependencies:
 - pip:
   - -e .
   - bmcs-utils
-  - oricreate
