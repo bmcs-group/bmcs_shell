@@ -4,11 +4,13 @@
 import bmcs_utils.api as bu
 import sympy as sp
 
+import k3d
+
 class WBElemSymb(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     u_2, u_3 = sp.symbols('u_2, u_3', positive=True)
-    alpha = sp.symbols('alpha', nonnepositivegative=True)
+    alpha = sp.symbols('alpha', nonnegative=True)
 
     U_0 = sp.Matrix([a, b, 0])
     W_0 = sp.Matrix([c, 0, 0])
@@ -54,6 +56,8 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     name = 'Waterbomb cell'
     symb_class = WBElemSymb
 
+    plot_backend = 'k3d'
+
     a = bu.Float(1, GEO=True)
     b = bu.Float(1, GEO=True)
     c = bu.Float(1, GEO=True)
@@ -61,7 +65,7 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     alpha = bu.Float(1e-5, GEO=True)
 
     ipw_view = bu.View(
-        bu.Item('alpha', latex = r'\alpha', editor=bu.FloatRangeEditor(low=1e-10,high=np.pi/2)),
+        bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(low=1e-10, high=np.pi/2)),
         bu.Item('a'),
         bu.Item('b'),
         bu.Item('c'),
@@ -98,21 +102,29 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
                          [0,4,6],
                          ])
 
-    def subplots(self,fig):
-        ax = fig.add_subplot(1, 1, 1, projection='3d')
-        return ax
+    # def subplots(self,fig):
+    #     ax = fig.add_subplot(1, 1, 1, projection='3d')
+    #     return ax
+    #
+    # def update_plot(self, axes):
+    #     ax = axes
+    #     x, y, z = self.X_Ia.T
+    #     triangles = self.I_Fi
+    #     ax.plot_trisurf(x, y, z, triangles=triangles, cmap=plt.cm.Spectral)
+    #     ax.set_zlim(0.01, np.max([self.a, self.b, self.c]))
+    #     # r = 1.5
+    #     # x_ = np.max([r * self.a, r * self.c])
+    #     # ax.set_xlim(-x_, +x_ )
+    #     # y_ = r * self.b
+    #     # ax.set_ylim(-y_, +y_)
 
-    def update_plot(self, axes):
-        ax = axes
-        x, y, z = self.X_Ia.T
-        triangles = self.I_Fi
-        ax.plot_trisurf(x, y, z, triangles=triangles, cmap=plt.cm.Spectral)
-        ax.set_zlim(0.01, np.max([self.a, self.b, self.c]))
-        # r = 1.5
-        # x_ = np.max([r * self.a, r * self.c])
-        # ax.set_xlim(-x_, +x_ )
-        # y_ = r * self.b
-        # ax.set_ylim(-y_, +y_)
-
-
+    def update_plot(self, k3d_plot):
+        wb_cell_mesh_surfaces = k3d.mesh(self.X_Ia.astype(np.float32), self.I_Fi.astype(np.uint32),
+                            color_map=k3d.colormaps.basic_color_maps.Jet,
+                            attribute=self.X_Ia[:, 2],
+                            color_range=[-1.1, 2.01], side='double')
+        wb_cell_mesh_lines = k3d.mesh(self.X_Ia.astype(np.float32), self.I_Fi.astype(np.uint32),
+                             color=0x000000, wireframe=True)
+        k3d_plot += wb_cell_mesh_surfaces
+        k3d_plot += wb_cell_mesh_lines
 
