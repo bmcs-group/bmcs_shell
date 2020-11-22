@@ -4,6 +4,11 @@
 import bmcs_utils.api as bu
 import sympy as sp
 from sympy.algebras.quaternion import Quaternion
+import k3d
+import traits.api as tr
+import numpy as np
+import math
+
 
 class WBElemSymb(bu.SymbExpr):
 
@@ -11,99 +16,109 @@ class WBElemSymb(bu.SymbExpr):
     u_2, u_3 = sp.symbols('u_2, u_3', positive=True)
     alpha = sp.symbols('alpha', positive=True)
 
-    U_0 = sp.Matrix([a, b, 0])
-    W_0 = sp.Matrix([c, 0, 0])
+    U0_a = sp.Matrix([a, b, 0])
+    W0_a = sp.Matrix([c, 0, 0])
+    UW0_a = W0_a - U0_a
+    L2_U_0 = (U0_a.T * U0_a)[0]
+    L2_UW_0 = (UW0_a.T * UW0_a)[0]
 
-    U = sp.Matrix([a, u_2, u_3])
-    W = sp.Matrix([c * sp.cos(alpha), 0, c * sp.sin(alpha)])
+    U1_a = sp.Matrix([a, u_2, u_3])
+    W1_a = sp.Matrix([c * sp.cos(alpha), 0, c * sp.sin(alpha)])
+    UW1_a = U1_a - W1_a
+    L2_U_1 = (U1_a.T * U1_a)[0]
+    L2_UW_1 = (UW1_a.T * UW1_a)[0]
 
-    UW_0 = W_0 - U_0
+    u2_sol = sp.solve(L2_U_1 - L2_U_0, u_2)[0]
+    u3_sol = sp.solve((L2_UW_1 - L2_UW_0).subs(u_2, u2_sol), u_3)[0]
+    u_3_ = u3_sol
+    u_2_ = u2_sol.subs(u_3, u3_sol)
 
-    L2_U0 = (U_0.T * U_0)[0]
-    L2_UW0 = (UW_0.T * UW_0)[0]
+    U_pp_a = U1_a.subs({u_2: u_2_, u_3: u_3_})
+    U_mm_a = sp.Matrix([-U_pp_a[0], -U_pp_a[1], U_pp_a[2]])
+    U_mp_a = sp.Matrix([-U_pp_a[0], U_pp_a[1], U_pp_a[2]])
+    U_pm_a = sp.Matrix([U_pp_a[0], -U_pp_a[1], U_pp_a[2]])
+    W_p_a = W1_a.subs({u_2: u_2_, u_3: u_3_})
+    W_m_a = sp.Matrix([-W_p_a[0], W_p_a[1], W_p_a[2]])
 
-    UW = U - W
+    V_UW = U_pp_a - W_p_a
+    L_UW = sp.sqrt(V_UW[1] ** 2 + V_UW[2] ** 2)
+    theta_sol = sp.simplify(2 * sp.asin(V_UW[2] / L_UW))
 
-    L2_U = (U.T * U)[0]
-    L2_UW = (UW.T * UW)[0]
-
-    u2_test = sp.solve(L2_U - L2_U0, u_2)[0]
-    u3_test = sp.solve((L2_UW - L2_UW0).subs(u_2, u2_test), u_3)[0]
-    u_3_ = u3_test
-    u_2_ = u2_test.subs(u_3, u3_test)
-
-    U_sol = U.subs({u_2: u_2_, u_3: u_3_})
-    W_sol = W.subs({u_2: u_2_, u_3: u_3_})
-    V_UW_sol = U_sol - W_sol
-    L_UW_sol = sp.sqrt(V_UW_sol[1] ** 2 + V_UW_sol[2] ** 2)
-    theta_sol = sp.simplify(2 * sp.asin( V_UW_sol[2] / L_UW_sol))
-
-    U0 = U.subs({u_2: u_2_, u_3: u_3_})
-    W0 = W.subs({u_2: u_2_, u_3: u_3_})
-    WC = sp.Matrix([-W0[0], W0[1], W0[2]])
+    theta = sp.Symbol(r'theta')
+    q_theta = Quaternion.from_axis_angle([1, 0, 0], theta)
 
     d_1, d_2, d_3 = sp.symbols('d_1, d_2, d_3')
-    D = sp.Matrix([d_1, d_2, d_3])
-    UD = D + U0
-    d_subs = sp.solve(UD - WC, [d_1, d_2, d_3])
-    D_ = D.subs(d_subs)
+    D_a = sp.Matrix([d_1, d_2, d_3])
+    UD_pp_a = U_pp_a + D_a
+    WD_p_a = W_p_a + D_a
+    d_subs = sp.solve(UD_pp_a - W_m_a, [d_1, d_2, d_3])
 
-    theta = sp.symbols('theta')
-    x_1, x_2, x_3 = sp.symbols('x_1, x_2, x_3')
+    # center of rotation
+    UD_pp_a_ = UD_pp_a.subs(d_subs)
+    # rotated point
+    WD_p_a_ = WD_p_a.subs(d_subs)
+    # pull back
+    WD_p_a_pb = WD_p_a_ - UD_pp_a_
+    # rotate using quaternion
+    WD_p_a_rot = q_theta.rotate_point(WD_p_a_pb.T, q_theta)
+    # push forward
+    WD_p_a_pf = sp.Matrix(WD_p_a_rot) + UD_pp_a_
+    # rotated compatibility point
+    WD_p_a_theta = WD_p_a_pf.subs(theta, -theta_sol)
 
-    q_theta = Quaternion.from_axis_angle([1, 0, 0], theta)
-    X_rot = q_theta.rotate_point((x_1, x_2, x_3), q_theta)
-    X_theta_a = sp.simplify(sp.Matrix(X_rot))
+    # rotate the center of the neighbour cell
+    DD_a_pb = D_a.subs(d_subs) - UD_pp_a_
+    DD_a_rot = q_theta.rotate_point(DD_a_pb.T, q_theta)
+    DD_a_pf = sp.simplify(sp.Matrix(DD_a_rot) + UD_pp_a_)
+    DD_a_theta = DD_a_pf.subs(theta, -theta_sol)
 
-    symb_model_params = ['a', 'b', 'c', ]
+    H = W_p_a[2]
+
+    rho = (U_mm_a[2] - DD_a_theta[2]) / (U_mm_a[1] - DD_a_theta[1]) * U_mm_a[1]
+    R_0 = U_mm_a[2] - rho
+    delta_phi = sp.asin(DD_a_theta[1] / R_0)
+    delta_x = a + W_p_a[0]
+
+    # theta = sp.symbols('theta')
+    # x_1, x_2, x_3 = sp.symbols('x_1, x_2, x_3')
+    #
+    # q_theta = Quaternion.from_axis_angle([1, 0, 0], theta)
+    # X_rot = q_theta.rotate_point((x_1, x_2, x_3), q_theta)
+    # X_theta_a = sp.simplify(sp.Matrix(X_rot))
+
+    symb_model_params = ['alpha', 'a', 'b', 'c', ]
     symb_expressions = [
-        ('u_2_', ('alpha',)),
-        ('u_3_', ('alpha',)),
-        ('U0', ('alpha',)),
-        ('UD', ('alpha',)),
-        ('W0', ('alpha',)),
-        ('WC', ('alpha',)),
-        ('X_theta_a', ('alpha', 'theta', 'x_1', 'x_2', 'x_3')),
-        ('D_', ('alpha',)),
-        ('theta_sol', ('alpha',))
+        ('u_2_', ()),
+        ('u_3_', ()),
+        ('R_0', ()),
+        ('delta_phi', ()),
+        ('delta_x', ()),
+        ('H', ()),
+        ('theta_sol', ())
     ]
 
-from ipyvolume import figure
-
-# In[22]:
-
-sp.algebras.quaternion.Quaternion
-
-import traits.api as tr
-import numpy as np
-import matplotlib.pylab as plt
 
 class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     name = 'Waterbomb cell'
     symb_class = WBElemSymb
 
+    plot_backend = 'k3d'
+
+    alpha = bu.Float(1e-5, GEO=True)
     a = bu.Float(1, GEO=True)
     b = bu.Float(1, GEO=True)
     c = bu.Float(1, GEO=True)
 
-    alpha = bu.Float(1e-5, GEO=True)
-
-    d_1 = bu.Float(0, GEO=True)
-    d_2 = bu.Float(0, GEO=True)
-    d_3 = bu.Float(0, GEO=True)
-
-    theta = bu.Float(0, GEO=True)
-
     ipw_view = bu.View(
         bu.Item('alpha', latex = r'\alpha', editor=bu.FloatRangeEditor(low=1e-10,high=np.pi/2)),
-        bu.Item('theta', latex = r'\theta', editor=bu.FloatRangeEditor(low=-np.pi/2,high=np.pi/2)),
         bu.Item('a'),
         bu.Item('b'),
         bu.Item('c'),
-        bu.Item('d_1'),
-        bu.Item('d_2'),
-        bu.Item('d_3'),
     )
+
+    n_I = tr.Property
+    def _get_n_I(self):
+        return len(self.X_Ia)
 
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
@@ -111,8 +126,8 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     @tr.cached_property
     def _get_X_Ia(self):
         alpha = self.alpha
-        u_2 = self.symb.get_u_2_(alpha)
-        u_3 = self.symb.get_u_3_(alpha)
+        u_2 = self.symb.get_u_2_()
+        u_3 = self.symb.get_u_3_()
         return np.array([
             [0,0,0], # 0 point
             [self.a, u_2, u_3], #U++
@@ -133,14 +148,6 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
         theta = self.symb.get_theta_sol(self.alpha)
         XD_Ia = D_a + self.X_Ia
         X_center = XD_Ia[1,:]
-
-        # X_pulled_back =  (XD_Ia - X_center[np.newaxis,:])
-        # X_rot_Ia = np.array([
-        #     self.symb.get_X_theta_a(self.alpha, -theta,
-        #                             X_a[0], X_a[1], X_a[2]).flatten()
-        #     for X_a in (XD_Ia - X_center[np.newaxis,:])
-        # ], dtype=np.float_)
-        # #return X_rot_Ia + X_center[np.newaxis,:]
 
         rotation_axes = np.array([[1, 0, 0]], dtype=np.float_)
         rotation_angles = np.array([-theta], dtype=np.float_)
@@ -166,24 +173,36 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
                          [0,4,6],
                          ])
 
-    def subplots(self,fig):
-        ax = fig.add_subplot(1, 1, 1, projection='3d')
-        return ax
 
-    def update_plot(self, axes):
-        ax = axes
-        x, y, z = self.X_Ia.T
-        triangles = self.I_Fi
-        ax.plot_trisurf(x, y, z, triangles=triangles, cmap=plt.cm.Spectral)
-        ax.set_zlim(0.01, np.max([self.a, self.b, self.c]))
-        x, y, z = self.X_theta_Ia.T
-        ax.plot_trisurf(x, y, z, triangles=triangles, cmap=plt.cm.Spectral)
-        # r = 1.5
-        # x_ = np.max([r * self.a, r * self.c])
-        # ax.set_xlim(-x_, +x_ )
-        # y_ = r * self.b
-        # ax.set_ylim(-y_, +y_)
+    delta_x = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_delta_x(self):
+        return self.symb.get_delta_x()
 
+    delta_phi = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_delta_phi(self):
+        return self.symb.get_delta_phi()
+
+    R_0 = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_R_0(self):
+        return self.symb.get_R_0()
+
+    def update_plot(self, k3d_plot):
+        wb_cell_mesh_surfaces = k3d.mesh(self.X_Ia.astype(np.float32),
+                                         self.I_Fi.astype(np.uint32),
+                                         color_map=k3d.colormaps.basic_color_maps.Jet,
+                                         attribute=self.X_Ia[:, 2],
+                                         color_range=[-1.1, 2.01], side='double')
+        k3d_plot += wb_cell_mesh_surfaces
+        # wb_cell_mesh_lines = k3d.mesh(self.X_Ia.astype(np.float32),
+        #                               self.I_Fi.astype(np.uint32),
+        #                               color=0x000000, wireframe=True)
+        # k3d_plot += wb_cell_mesh_lines
+
+        # k3d_plot += k3d.mesh(self.X_theta_Ia.astype(np.float32),
+        #                      self.I_Fi.astype(np.uint32), side='double')
 
 def q_normalize(q, axis=1):
     sq = np.sqrt(np.sum(q * q, axis=axis))
@@ -214,36 +233,35 @@ def q_conjugate(q):
 
 
 def qv_mult(q1, u):
-    print('shapes')
-    print('q1', q1.shape, 'u', u.shape)
+    #print('q1', q1.shape, 'u', u.shape)
     zero_re = np.zeros((u.shape[0], u.shape[1]), dtype='f')
-    print('zero_re', zero_re.shape)
+    #print('zero_re', zero_re.shape)
     q2 = np.concatenate([zero_re[:, :, np.newaxis], u], axis=2)
-    print('q2', q2.shape)
+    #print('q2', q2.shape)
     q2 = np.rollaxis(q2, 2)
-    print('q2', q2.shape)
+    #print('q2', q2.shape)
     q12 = q_mult(q1[:, :, np.newaxis], q2[:, :, :])
-    print('q12', q12.shape)
+    #print('q12', q12.shape)
     q_con = q_conjugate(q1)
-    print('q_con', q_con.shape)
+    #print('q_con', q_con.shape)
     q = q_mult(q12, q_con[:, :, np.newaxis])
-    print('q', q.shape)
+    #print('q', q.shape)
     q = np.rollaxis(np.rollaxis(q, 2), 2)
-    print('q', q.shape)
+    #print('q', q.shape)
     return q[:, :, 1:]
 
 
 def axis_angle_to_q(v, theta):
     v_ = v_normalize(v, axis=1)
     x, y, z = v_.T
-    print('x,y,z', x, y, z)
+#    print('x,y,z', x, y, z)
     theta = theta / 2
-    print('theta', theta)
+#    print('theta', theta)
     w = np.cos(theta)
     x = x * np.sin(theta)
     y = y * np.sin(theta)
     z = z * np.sin(theta)
-    print('x,y,z', x, y, z)
+#    print('x,y,z', x, y, z)
     return np.array([w, x, y, z], dtype='f')
 
 
