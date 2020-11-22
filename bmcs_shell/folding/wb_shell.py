@@ -39,9 +39,9 @@ class WBShell(bu.InteractiveModel):
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
             low=1e-10, high=np.pi/2, n_steps=100, continuous_update=True)),
-        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-10, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-10, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-10, high_name='c_high', n_steps=100, continuous_update=True)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-10, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-10, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-10, high_name='c_high', n_steps=100, continuous_update=True)),
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
     )
@@ -222,6 +222,8 @@ class WBShell(bu.InteractiveModel):
                       self.wb_cell.I_boundary[np.newaxis, np.newaxis, :, :])
         return I_CDij_map
 
+    show_nodes = bu.Bool(False)
+
     def plot_k3d(self, k3d_plot):
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
@@ -240,8 +242,10 @@ class WBShell(bu.InteractiveModel):
                                  side='double')
 
         k3d_plot += self.k3d_mesh
-        for I, X_a in enumerate(X_Ia):
-            k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
+
+        if self.show_nodes:
+            for I, X_a in enumerate(X_Ia):
+                k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
 
     def update_plot(self, k3d_plot):
         X_Ia = self.X_Ia.astype(np.float32)

@@ -4,7 +4,7 @@ Created on Feb 8, 2018
 @author: rch
 '''
 
-from ibvpy.mats.mats2D.mats2D_eval import MATS2DEval
+from ibvpy.tmodel.mats2D.mats2D_eval import MATS2DEval
 import numpy as np
 
 

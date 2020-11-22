@@ -4,11 +4,11 @@ from bmcs_shell.folding.wbfe_xdomain import \
 import numpy as np
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
-from ibvpy.mats.viz3d_scalar_field import \
+from ibvpy.tmodel.viz3d_scalar_field import \
     Vis3DStateField, Viz3DScalarField
 from bmcs_shell.folding.wb_cell import WBElem
 import bmcs_utils.api as bu
-from ibvpy.mats.viz3d_tensor_field import \
+from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
 import traits.api as tr
 from ibvpy.bcond import BCDof

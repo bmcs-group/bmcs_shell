@@ -2,7 +2,7 @@
 from ibvpy.fets.i_fets import IFETSEval
 from ibvpy.mesh.fe_grid import FEGrid
 from ibvpy.mathkit.linalg.sys_mtx_assembly import SysMtxArray
-from ibvpy.sim.i_xdomain import IXDomain
+from ibvpy.sim.i_xmodel import IXModel
 from traits.api import \
     Property, cached_property, \
     provides, Callable, \
@@ -13,7 +13,7 @@ from ibvpy.mesh.i_fe_uniform_domain import IFEUniformDomain
 import numpy as np
 
 
-@provides(IXDomain)
+@provides(IXModel)
 class XDomainFE(BMCSTreeNode):
 
     hidden = Bool(False)
@@ -368,7 +368,7 @@ class XDomainFE(BMCSTreeNode):
         '''Return the number of points defining one cell'''
         return self.fets.n_vtk_r
 
-@provides(IXDomain)
+@provides(IXModel)
 class XDomainFEGrid(XDomainFE):
 
     #=========================================================================
