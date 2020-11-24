@@ -15,3 +15,4 @@ dependencies:
 - pip:
   - -e .
   - bmcs-utils
+  - bmcs-ibvpy
