@@ -129,13 +129,13 @@ class FEWBShellMesh(WBShell):
 
     n_active_elems = tr.Property
     def _get_n_active_elems(self):
-        return len(self.I_Ei)
+        return len(self.I_Fi)
 
 class XWBDomain(XDomainFE):
     '''
     Finite element discretization with dofs and mappings derived from the FE definition
     '''
-    mesh = tr.Instance(FECustomMesh, ())
+    mesh = tr.Instance(FEWBShellMesh, ())
     fets = tr.DelegatesTo('mesh')
 
     n_dofs = tr.Property
