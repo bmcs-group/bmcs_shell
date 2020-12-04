@@ -105,15 +105,19 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     plot_backend = 'k3d'
 
     alpha = bu.Float(1e-5, GEO=True)
-    a = bu.Float(1, GEO=True)
-    b = bu.Float(1, GEO=True)
-    c = bu.Float(1, GEO=True)
+    a = bu.Float(1000, GEO=True)
+    b = bu.Float(1000, GEO=True)
+    c = bu.Float(1000, GEO=True)
+    a_high = bu.Float(2000)
+    b_high = bu.Float(2000)
+    c_high = bu.Float(2000)
 
     ipw_view = bu.View(
-        bu.Item('alpha', latex = r'\alpha', editor=bu.FloatRangeEditor(low=1e-10,high=np.pi/2)),
-        bu.Item('a'),
-        bu.Item('b'),
-        bu.Item('c'),
+        bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
+            low=1e-10, high=np.pi / 2, n_steps=100, continuous_update=True)),
+        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-10, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-10, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-10, high_name='c_high', n_steps=100, continuous_update=True)),
     )
 
     n_I = tr.Property
@@ -138,6 +142,11 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
             [-self.c * np.cos(alpha), 0, self.c * np.sin(alpha)] # W0-
             ], dtype=np.float_
         )
+
+    I_boundary = tr.Array(np.int_, value=[[2,1],
+                                          [6,5],
+                                          [4,3],])
+    '''Boundary nodes in 2D array to allow for generation of shell boundary nodes'''
 
     X_theta_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
@@ -173,7 +182,6 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
                          [0,4,6],
                          ])
 
-
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_delta_x(self):
@@ -189,20 +197,19 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
-    def update_plot(self, k3d_plot):
-        wb_cell_mesh_surfaces = k3d.mesh(self.X_Ia.astype(np.float32),
-                                         self.I_Fi.astype(np.uint32),
-                                         color_map=k3d.colormaps.basic_color_maps.Jet,
-                                         attribute=self.X_Ia[:, 2],
-                                         color_range=[-1.1, 2.01], side='double')
-        k3d_plot += wb_cell_mesh_surfaces
-        # wb_cell_mesh_lines = k3d.mesh(self.X_Ia.astype(np.float32),
-        #                               self.I_Fi.astype(np.uint32),
-        #                               color=0x000000, wireframe=True)
-        # k3d_plot += wb_cell_mesh_lines
+    def plot_k3d(self, k3d_plot):
+        self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
+                                 self.I_Fi.astype(np.uint32),
+                                 color=0x999999,
+                                 side='double')
 
-        # k3d_plot += k3d.mesh(self.X_theta_Ia.astype(np.float32),
-        #                      self.I_Fi.astype(np.uint32), side='double')
+        k3d_plot += self.wb_mesh
+
+    def update_plot(self, k3d_plot):
+        mesh = self.wb_mesh
+        mesh.vertices = self.X_Ia.astype(np.float32)
+        mesh.indices = self.I_Fi.astype(np.uint32)
+        mesh.attributes = self.X_Ia[:, 2].astype(np.float32)
 
 def q_normalize(q, axis=1):
     sq = np.sqrt(np.sum(q * q, axis=axis))

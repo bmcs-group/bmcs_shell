@@ -1,12 +1,13 @@
 
 import traits.api as tr
-from ibvpy.fets import FETSEval
+from .wbfe_fets2d3u1m import FETS2D3U1M
 from ibvpy.mathkit.tensor import DELTA23_ab
-from bmcs_shell.folding.waterbomb_shell import WBShell
+from bmcs_shell.folding.wb_shell import WBShell
 import numpy as np
 from oricreate.util import \
     get_theta, get_theta_du
-
+import k3d
+from ibvpy.mathkit.linalg.sys_mtx_assembly import SysMtxArray
 
 INPUT = '+cp_input'
 
@@ -20,84 +21,13 @@ EPS = np.zeros((3, 3, 3), dtype='f')
 EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
 EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 
-
-from ibvpy.sim.tstep_bc import TStepBC
-
-class FETS2D3U1M(FETSEval):
-    r'''Triangular, three-node element.
-    '''
-
-    vtk_r = tr.Array(np.float_, value=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    vtk_cells = [[0, 1, 2]]
-    vtk_cell_types = 'Triangle'
-    vtk_cell = [0, 1, 2]
-    vtk_cell_type = 'Triangle'
-
-    vtk_expand_operator = tr.Array(np.float_, value=DELTA23_ab)
-
-    # =========================================================================
-    # Surface integrals using numerical integration
-    # =========================================================================
-    eta_ip = tr.Array('float_')
-    r'''Integration points within a triangle.
-    '''
-
-    def _eta_ip_default(self):
-        return np.array([[1. / 3., 1. / 3., 1. / 3.]], dtype='f')
-
-    w_m = tr.Array('float_')
-    r'''Weight factors for numerical integration.
-    '''
-
-    def _w_m_default(self):
-        return np.array([1. / 2.], dtype='f')
-
-    n_m = tr.Int(1)
-    r'''Number of integration points.
-    '''
-    @tr.cached_property
-    def _get_w_m(self):
-        return len(self.w_m)
-
-    n_nodal_dofs = tr.Int(3)
-
-    N_im = tr.Property(depends_on='eta_ip')
-    r'''Shape function values in integration points.
-    '''
-    @tr.cached_property
-    def _get_N_im(self):
-        eta = self.eta_ip
-        return np.array([eta[:, 0], eta[:, 1], 1 - eta[:, 0] - eta[:, 1]],
-                        dtype='f')
-
-    dN_imr = tr.Property(depends_on='eta_ip')
-    r'''Derivatives of the shape functions in the integration points.
-    '''
-    @tr.cached_property
-    def _get_dN_imr(self):
-        dN_mri = np.array([[[1, 0, -1],
-                          [0, 1, -1]],
-                          ], dtype=np.float_)
-        return np.einsum('mri->imr', dN_mri)
-
-    dN_inr = tr.Property(depends_on='eta_ip')
-    r'''Derivatives of the shape functions in the integration points.
-    '''
-    @tr.cached_property
-    def _get_dN_inr(self):
-        return self.dN_imr
-
-    vtk_expand_operator = tr.Array(value=[1,1,0])
-    vtk_node_cell_data = tr.Array
-    vtk_ip_cell_data = tr.Array
-
 from ibvpy.mesh.i_fe_uniform_domain import IFEUniformDomain
-from ibvpy.xdomain.xdomain_fe_grid import XDomainFE
+from .xdomain_fe_grid import XDomainFE
 
 
 
 @tr.provides(IFEUniformDomain)
-class FECustomMesh(tr.HasStrictTraits):
+class FETriangularMesh(tr.HasStrictTraits):
 
     X_Id = tr.Array(np.float_, value=[[0,0, 0], [2,0, 0], [2,2,0], [2,0,0], [1,1,0]])
     I_Fi = tr.Array(np.int_, value=[[0,1,4],
@@ -116,27 +46,23 @@ class FECustomMesh(tr.HasStrictTraits):
 
 
 @tr.provides(IFEUniformDomain)
-class FEWBShellMesh(WBShell):
+class FEWBShellMesh(WBShell, FETriangularMesh):
 
     X_Id = tr.Property
     def _get_X_Id(self):
         return self.X_Ia
 
-    fets = tr.Instance(FETS2D3U1M, ())
-
-    n_nodal_dofs = tr.DelegatesTo('fets')
-    dof_offset = tr.Int(0)
-
-    n_active_elems = tr.Property
-    def _get_n_active_elems(self):
-        return len(self.I_Fi)
 
 class XWBDomain(XDomainFE):
     '''
     Finite element discretization with dofs and mappings derived from the FE definition
     '''
-    mesh = tr.Instance(FEWBShellMesh, ())
+    mesh = tr.Instance(FETriangularMesh, ())
     fets = tr.DelegatesTo('mesh')
+
+    change = tr.Event(GEO=True)
+
+    plot_backend = 'k3d'
 
     n_dofs = tr.Property
 
@@ -227,6 +153,134 @@ class XWBDomain(XDomainFE):
         #K2_Eicjd = np.einsum('Eca,Ebd,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
         #K2_Eicjd = np.einsum('Eac,Edb,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
         return K2_Eiajb
+
+    bc_J_F_xyz= tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_bc_J_F_xyz(self):
+        ix2 = int((self.mesh.n_phi_plus) / 2)
+        F_I = self.mesh.I_CDij[ix2, :, 0, :].flatten()
+        _, idx_remap = self.mesh.unique_node_map
+        return idx_remap[F_I]
+
+    bc_J_xyz = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_bc_J_xyz(self):
+        I_M = self.mesh.I_CDij[(0, -1),:,(0, -1),:].flatten()
+        _, idx_remap = self.mesh.unique_node_map
+        J_M = idx_remap[I_M]
+        return J_M
+
+    bc_J_x = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_bc_J_x(self):
+        I_M = self.mesh.I_CDij[:,(0, -1),:,(0, -1)].flatten()
+        _, idx_remap = self.mesh.unique_node_map
+        J_M = idx_remap[I_M]
+        return J_M
+
+    def plot_k3d(self, k3d_plot):
+        X_Ia = self.mesh.X_Ia.astype(np.float32)
+        I_Fi = self.mesh.I_Fi.astype(np.uint32)
+
+        X_Ma = X_Ia[self.bc_J_xyz]
+        self.k3d_fixed_xyz = k3d.points(X_Ma)
+        k3d_plot += self.k3d_fixed_xyz
+
+        X_Ma = X_Ia[self.bc_J_x]
+        self.k3d_fixed_x = k3d.points(X_Ma, color=0x22ffff)
+        k3d_plot += self.k3d_fixed_x
+
+        X_Ma = X_Ia[self.bc_J_F_xyz]
+        self.k3d_load_z = k3d.points(X_Ma, color=0xff22ff)
+        k3d_plot += self.k3d_load_z
+
+        self.k3d_mesh = k3d.mesh(X_Ia,
+                                 I_Fi,
+                                 color=0x999999,
+                                 side='double')
+        k3d_plot += self.k3d_mesh
+
+    def update_plot(self, k3d_plot):
+        X_Ia = self.mesh.X_Ia.astype(np.float32)
+        I_Fi = self.mesh.I_Fi.astype(np.uint32)
+
+        self.k3d_fixed_xyz.positions = X_Ia[self.bc_J_xyz]
+        self.k3d_fixed_x.positions = X_Ia[self.bc_J_x]
+        self.k3d_load_z.positions = X_Ia[self.bc_J_F_xyz]
+
+        mesh = self.k3d_mesh
+        mesh.vertices = X_Ia
+        mesh.indices = I_Fi
+
+    B_Eso = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_B_Eso(self):
+        xx_Ei, yy_Ei = np.einsum('...a->a...', self.x_Eia)
+
+        y23 = yy_Ei[:, 1] - yy_Ei[:, 2]
+        y31 = yy_Ei[:, 2] - yy_Ei[:, 0]
+        y12 = yy_Ei[:, 0] - yy_Ei[:, 1]
+        x32 = xx_Ei[:, 2] - xx_Ei[:, 1]
+        x13 = xx_Ei[:, 0] - xx_Ei[:, 2]
+        x21 = xx_Ei[:, 1] - xx_Ei[:, 0]
+        x23 = -x32
+        y32 = -y23
+        y13 = -y31
+
+        J_Ear = np.array([[x13, y13], [x23, y23]])
+        J_Ear = np.einsum('ar...->...ar', J_Ear)
+        det_J_E = np.linalg.det(J_Ear)
+
+        O = np.zeros_like(y23)
+        B_soE = np.array(
+            [
+                [y23, O, y31, O, y12, O],
+                [O, x32, O, x13, O, x21],
+                [x32, y23, x13, y31, x21, y12]
+            ]
+        )
+        B_Eso = np.einsum('soE,E->Eso', B_soE, 1 / det_J_E)
+        return B_Eso, det_J_E
+
+    def map_U_to_field(self, U):
+        U_Eia = U[self.o_Eia]
+        # coordinate transform to local
+        U_Eia = self.xU2u(U_Eia)
+        U_Eo = U_Eia.reshape(-1,6)
+        B_Eso, _ = self.B_Eso
+        eps_Eso = np.einsum(
+            'Eso,Eo->Es',
+            B_Eso, U_Eo
+        )
+        return eps_Eso
+
+    def map_field_to_F(self, sig_Es):
+        B_Eso, det_J_E = self.B_Eso
+        f_Eo = self.integ_factor * np.einsum(
+            'Eso,Es,E->Eo',
+            B_Eso, sig_Es, det_J_E / 2
+        )
+        f_Eic = f_Eo.reshape(-1,3,2)
+        # coordinate transform to global
+        f_Eic = self.xf2F(f_Eic)
+        _, n_i, n_c = f_Eic.shape
+        f_Ei = f_Eic.reshape(-1, n_i * n_c)
+        o_E = self.o_Eia.reshape(-1, n_i * n_c)
+        return o_E.flatten(), f_Ei.flatten()
+
+
+    def map_field_to_K(self, D_Est):
+        #==========================================================================
+        B_Eso, det_J_E = self.B_Eso
+        k2_ij = self.integ_factor * np.einsum('Eso,Est,Etp,E->Eop', B_Eso, D_Est, B_Eso, det_J_E / 2)
+        K_Eiejf = k2_ij.reshape(-1, 3, 2, 3, 2)
+        K_Eicjd = self.xk2K(K_Eiejf)
+
+        _, n_i, n_c, n_j, n_d = K_Eicjd.shape
+        K_Eij = K_Eicjd.reshape(-1, n_i * n_c, n_j * n_d)
+        o_Ei = self.o_Eia.reshape(-1, n_i * n_c)
+        return SysMtxArray(mtx_arr=K_Eij, dof_map_arr=o_Ei)
+
 
     # =========================================================================
     # Property operators for initial configuration
