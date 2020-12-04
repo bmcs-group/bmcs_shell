@@ -240,8 +240,8 @@ class WBShell(bu.InteractiveModel):
                                  side='double')
 
         k3d_plot += self.k3d_mesh
-        # for I, X_a in enumerate(X_Ia):
-        #     k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
+        for I, X_a in enumerate(X_Ia):
+            k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
 
     def update_plot(self, k3d_plot):
         X_Ia = self.X_Ia.astype(np.float32)
