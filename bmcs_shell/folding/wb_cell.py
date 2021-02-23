@@ -117,9 +117,9 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
-        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
     )
 
     n_I = tr.Property
