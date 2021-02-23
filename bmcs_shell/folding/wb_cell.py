@@ -112,12 +112,14 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
 
+    show_wireframe = tr.Bool
+
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
-            low=1e-10, high=np.pi / 2, n_steps=100, continuous_update=True)),
-        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-10, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-10, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-10, high_name='c_high', n_steps=100, continuous_update=True)),
+            low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
+        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
     )
 
     n_I = tr.Property
@@ -202,11 +204,22 @@ class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
                                  self.I_Fi.astype(np.uint32),
                                  color=0x999999,
                                  side='double')
-
         k3d_plot += self.wb_mesh
 
+        if self.show_wireframe:
+            self.wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
+                                            self.I_Fi.astype(np.uint32),
+                                            color=0x000000,
+                                            wireframe=True)
+
+            k3d_plot += self.wb_mesh_wireframe
+
     def update_plot(self, k3d_plot):
-        mesh = self.wb_mesh
+        self._assign_mesh_data(self.wb_mesh)
+        if self.show_wireframe:
+            self._assign_mesh_data(self.wb_mesh_wireframe)
+
+    def _assign_mesh_data(self, mesh):
         mesh.vertices = self.X_Ia.astype(np.float32)
         mesh.indices = self.I_Fi.astype(np.uint32)
         mesh.attributes = self.X_Ia[:, 2].astype(np.float32)

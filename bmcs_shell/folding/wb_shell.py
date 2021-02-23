@@ -24,6 +24,9 @@ class WBShell(bu.InteractiveModel):
     c = bu.Float(1000, GEO=True)
     c_high = bu.Float(2000)
 
+    show_node_nums = tr.Bool
+    show_wireframe = tr.Bool
+
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
         self.wb_cell.trait_set(
@@ -38,10 +41,10 @@ class WBShell(bu.InteractiveModel):
 
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
-            low=1e-10, high=np.pi/2, n_steps=100, continuous_update=True)),
-        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-10, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-10, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-10, high_name='c_high', n_steps=100, continuous_update=True)),
+            low=1e-6, high=np.pi/2, n_steps=1000, continuous_update=True)),
+        bu.Item('a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=1000, continuous_update=True)),
+        bu.Item('b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=1000, continuous_update=True)),
+        bu.Item('c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=1000, continuous_update=True)),
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
     )
@@ -226,7 +229,7 @@ class WBShell(bu.InteractiveModel):
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
-        I_M = self.I_CDij[(0, -1),:,(0, -1),:]
+        I_M = self.I_CDij[(0, -1), :, (0, -1), :]
         _, idx_remap = self.unique_node_map
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
@@ -240,8 +243,17 @@ class WBShell(bu.InteractiveModel):
                                  side='double')
 
         k3d_plot += self.k3d_mesh
-        for I, X_a in enumerate(X_Ia):
-            k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
+
+        if self.show_wireframe:
+            self.k3d_mesh_wireframe = k3d.mesh(X_Ia,
+                                I_Fi,
+                                color=0x000000,
+                                wireframe=True)
+            k3d_plot += self.k3d_mesh_wireframe
+
+        if self.show_node_nums:
+            for I, X_a in enumerate(X_Ia):
+                k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
 
     def update_plot(self, k3d_plot):
         X_Ia = self.X_Ia.astype(np.float32)
@@ -256,3 +268,9 @@ class WBShell(bu.InteractiveModel):
         mesh = self.k3d_mesh
         mesh.vertices = X_Ia
         mesh.indices = I_Fi
+
+        if self.show_wireframe:
+            wireframe = self.k3d_mesh_wireframe
+            wireframe.vertices = X_Ia
+            wireframe.indices = I_Fi
+
