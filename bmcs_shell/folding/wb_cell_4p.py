@@ -7,10 +7,9 @@ from sympy.algebras.quaternion import Quaternion
 import k3d
 import traits.api as tr
 import numpy as np
-import math
 
 
-class WBElemSymb(bu.SymbExpr):
+class WBElemSymb4Param(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     u_2, u_3 = sp.symbols('u_2, u_3', positive=True)
@@ -98,9 +97,9 @@ class WBElemSymb(bu.SymbExpr):
     ]
 
 
-class WBElem(bu.InteractiveModel,bu.InjectSymbExpr):
-    name = 'Waterbomb cell'
-    symb_class = WBElemSymb
+class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
+    name = 'Waterbomb cell 4p'
+    symb_class = WBElemSymb4Param
 
     plot_backend = 'k3d'
 

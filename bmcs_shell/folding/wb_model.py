@@ -6,7 +6,7 @@ from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
 from ibvpy.tmodel.viz3d_scalar_field import \
     Vis3DStateField, Viz3DScalarField
-from bmcs_shell.folding.wb_cell import WBElem
+from bmcs_shell.folding.wb_cell_4p import WBElem
 import bmcs_utils.api as bu
 from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
