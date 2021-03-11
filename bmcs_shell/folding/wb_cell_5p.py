@@ -10,7 +10,7 @@ import numpy as np
 import math
 
 
-class WBElemSymb5Param(bu.SymbExpr):
+class WBElemSymb5ParamVersion3(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     alpha = sp.symbols('alpha')
@@ -70,14 +70,150 @@ class WBElemSymb5Param(bu.SymbExpr):
     ]
 
 
+class WBElemSymb5ParamVersion4(bu.SymbExpr):
+
+    a, b, c = sp.symbols('a, b, c', positive=True)
+    alpha = sp.symbols('alpha')
+    beta = sp.symbols('beta')
+
+    sin = sp.sin
+    cos = sp.cos
+    x_ul_ = (
+        (
+                (((sin(alpha)-sin(beta)) * sin(alpha+beta) * sin(alpha) * cos(beta) * a)
+                /
+                (cos(alpha) - cos(beta)))
+                + sin(alpha) * sin(beta) * sin(alpha +beta) * a
+        )
+        /
+        (
+                sin(alpha) * (cos(alpha+beta) + 1)
+        )
+    )
+
+    x_ul = sp.symbols('x_ul')
+    x_ur = sp.symbols('x_ur')
+
+    sqrt = sp.sqrt
+    y_r_ = (
+        (
+            sqrt(
+            sin(alpha)**2 * b**2 - (a * cos(alpha) - x_ur) ** 2
+            )
+        )
+        /
+        (sin(alpha))
+    )
+
+    y_l_ = (
+        (
+            sqrt(
+            sin(beta)**2 * b**2 - (a * cos(beta) + x_ul) ** 2
+            )
+        )
+        /
+        (sin(beta))
+    )
+
+    x_ur_ = (
+        ( sin(alpha) * x_ul +sin(alpha+beta) * a)
+        /
+        ( sin(beta) )
+    )
+
+    x_ur = sp.symbols('x_ur')
+
+    x_lr_ = 2 * a * cos(alpha) - x_ur
+    x_ll_ = -2 * a * cos(beta) - x_ul
+
+    x_lr = sp.symbols('x_lr')
+    x_ll = sp.symbols('x_ll')
+
+    z_ul_ = (a + sp.cos(beta)*x_ul)/(sp.sin(beta))
+    z_ur_ = (a - sp.cos(alpha)*x_ur)/(sp.sin(alpha))
+    z_ll_ = (a + sp.cos(beta)*x_ll)/(sp.sin(beta))
+    z_lr_ = (a - sp.cos(alpha)*x_lr)/(sp.sin(alpha))
+
+    symb_model_params = ['alpha', 'beta', 'a', 'b', 'c', ]
+    symb_expressions = [
+        ('y_l_', ('x_ul',)),
+        ('y_r_', ('x_ur',)),
+        ('x_ul_', () ),
+        ('x_ur_', ('x_ul',)),
+        ('x_ll_', ('x_ul',)),
+        ('x_lr_', ('x_ur',)),
+        ('z_ul_', ('x_ul',)),
+        ('z_ur_', ('x_ur',)),
+        ('z_ll_', ('x_ll',)),
+        ('z_lr_', ('x_lr',)),
+    ]
+
+class WBElemSymb5ParamVersionEta(bu.SymbExpr):
+
+    def get_U_ur(x_ur, y_ur, z_ur, a, b, c, V_r_l):
+        U_ur_0 = sp.Matrix([a, b, 0])
+        V_r_0 = sp.Matrix([c, 0, 0])
+        UV_r_0 = V_r_0 - U_ur_0
+        L2_U_ur_0 = (U_ur_0.T * U_ur_0)[0]
+        L2_UV_r_0 = (UV_r_0.T * UV_r_0)[0]
+        U_ur_1 = sp.Matrix([x_ur, y_ur, z_ur])
+        UV_r_1 = U_ur_1 - V_r_l
+        L2_U_ur_1 = (U_ur_1.T * U_ur_1)[0]
+        L2_UV_r_1 = (UV_r_1.T * UV_r_1)[0]
+        Eq_L2_U_ur = sp.simplify(sp.Eq(L2_U_ur_1 - L2_U_ur_0, 0))
+        y_ur_sol = sp.solve(Eq_L2_U_ur, y_ur)[0]
+        Eq_L2_UV_r = sp.simplify(sp.Eq(L2_UV_r_1 - L2_UV_r_0, 0))
+        Eq_L2_UV_r_z_ur = Eq_L2_UV_r.subs(y_ur, y_ur_sol)
+        z_ur_sol = sp.solve(Eq_L2_UV_r_z_ur, z_ur)[0]
+        return sp.Matrix([x_ur, y_ur_sol.subs(z_ur, z_ur_sol), z_ur_sol])
+
+    a, b, c = sp.symbols('a, b, c', positive=True)
+    alpha = sp.symbols('alpha', positive=True)
+    V_r_l = sp.Matrix([c * sp.sin(alpha), 0, c * sp.cos(alpha)])
+
+    x_ur, y_ur, z_ur = sp.symbols('x_ur, y_ur, z_ur', positive=True)
+
+    U_ur = get_U_ur(x_ur, y_ur, z_ur, a, b, c, V_r_l)
+
+    x_ul = sp.symbols('x_ul', negative=True)
+
+    U_ul = U_ur.subs(x_ur, -x_ul)
+    U_ul[0] *= -1
+
+    UU_u_1 = U_ur - U_ul
+    L2_UU_u_1 = (UU_u_1.T * UU_u_1)[0]
+
+    eta = sp.symbols('eta')
+    x_ul_ = - eta * x_ur
+    L2_UU_u_1_eta = L2_UU_u_1.subs(x_ul, x_ul_)
+
+    Eq_L2_UU_u_1 = sp.Eq(L2_UU_u_1_eta - (2 * a) ** 2, 0)
+    x_ur_sol_1, x_ur_sol_2 = sp.solve(Eq_L2_UU_u_1.subs(alpha, 0), x_ur)
+
+    x_ur_ = x_ur_sol_1
+    y_r_ = U_ur[1]
+    z_ur_ = U_ur[2]
+    y_l_ = U_ul[1]
+    z_ul_ = U_ul[2]
+
+    symb_model_params = ['alpha', 'eta', 'a', 'b', 'c', ]
+    symb_expressions = [
+        ('y_l_', ('x_ul',)),
+        ('y_r_', ('x_ur',)),
+        ('x_ul_', ('x_ur',) ),
+        ('x_ur_', ()),
+        ('z_ul_', ('x_ul',)),
+        ('z_ur_', ('x_ur',)),
+    ]
+
 class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     name = 'waterbomb cell 5p'
-    symb_class = WBElemSymb5Param
+    symb_class = WBElemSymb5ParamVersionEta
 
     plot_backend = 'k3d'
 
-    alpha = bu.Float(1e-5, GEO=True)
-    beta = bu.Float(1e-5, GEO=True)
+    alpha = bu.Float(np.pi/2+1e-5, GEO=True)
+    eta = bu.Float(1, GEO=True)
     a = bu.Float(1000, GEO=True)
     b = bu.Float(1000, GEO=True)
     c = bu.Float(1000, GEO=True)
@@ -90,8 +226,8 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
-        bu.Item('beta', latex=r'\beta', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
+        bu.Item('eta', latex=r'\eta', editor=bu.FloatRangeEditor(
+            low=1e-6, high=10, n_steps=100, continuous_update=True)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
@@ -107,45 +243,26 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     @tr.cached_property
     def _get_X_Ia(self):
         alpha = self.alpha
-        beta = self.beta
-        a, b, c = self.a, self.b, self.c
 
-        y_l = self.symb.get_y_l_()
-        y_r = self.symb.get_y_r_()
-        x_ul = self.symb.get_x_ul_( y_l )
         x_ur = self.symb.get_x_ur_()
-        x_ll = self.symb.get_x_ll_( y_l )
-        x_lr = self.symb.get_x_lr_()
+        x_ul = self.symb.get_x_ul_(x_ur)
+        y_r = self.symb.get_y_r_(x_ur)
+        y_l = self.symb.get_y_l_(x_ul)
         z_ul = self.symb.get_z_ul_(x_ul)
         z_ur = self.symb.get_z_ur_(x_ur)
-        z_ll = self.symb.get_z_ll_(x_ll)
-        z_lr = self.symb.get_z_lr_(x_lr)
 
-        print('upper left')
-        print(x_ul, y_l, z_ul)
-        return np.array([
-            [0,0,0], # 0 point
-            [x_ur, y_r, z_ur], #U++
-#            [a, b, 0], #U++
-            [x_ul, y_l, z_ul], #U-+  ul
-#            [-a, b, 0], #U-+  ul
-            [x_lr,-y_r, z_lr], #U+-
-#            [a,-b, 0], #U+-
-            [x_ll,-y_l, z_ll], #U--
-#            [-a,-b, 0], #U--
-            [self.c * np.cos(alpha), 0, self.c * np.sin(alpha)], # W0+
-            [-self.c * np.cos(beta), 0, self.c * np.sin(beta)] # W0-
-            ], dtype=np.float_
-        )
-
+        x_lr = x_ur
+        x_ll = x_ul
+        z_lr = z_ur
+        z_ll = z_ul
         return np.array([
             [0,0,0], # 0 point
             [x_ur, y_r, z_ur], #U++
             [x_ul, y_l, z_ul], #U-+  ul
             [x_lr,-y_r, z_lr], #U+-
             [x_ll,-y_l, z_ll], #U--
-            [self.c * np.cos(alpha), 0, self.c * np.sin(alpha)], # W0+
-            [-self.c * np.cos(beta), 0, self.c * np.sin(beta)] # W0-
+            [self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
+            [-self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
             ], dtype=np.float_
         )
 
@@ -203,25 +320,28 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
-    def plot_k3d(self, k3d_plot):
-        self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
+    def setup_plot(self, pb):
+        wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
                                  self.I_Fi.astype(np.uint32),
                                  color=0x999999,
                                  side='double')
-        k3d_plot += self.wb_mesh
-
+        pb.plot_fig += wb_mesh
+        pb.objects['wb_mesh'] = wb_mesh
         if self.show_wireframe:
-            self.wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
+            wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
                                             self.I_Fi.astype(np.uint32),
                                             color=0x000000,
                                             wireframe=True)
 
-            k3d_plot += self.wb_mesh_wireframe
+            pb.plot_fig += wb_mesh_wireframe
+            pb.objects['wb_mesh_wireframe'] = wb_mesh_wireframe
 
-    def update_plot(self, k3d_plot):
-        self._assign_mesh_data(self.wb_mesh)
+    def update_plot(self, pb):
+        wb_mesh = pb.objects['wb_mesh']
+        wb_mesh_wireframe = pb.objects['wb_mesh_wireframe']
+        self._assign_mesh_data(wb_mesh)
         if self.show_wireframe:
-            self._assign_mesh_data(self.wb_mesh_wireframe)
+            self._assign_mesh_data(wb_mesh_wireframe)
 
     def _assign_mesh_data(self, mesh):
         mesh.vertices = self.X_Ia.astype(np.float32)
