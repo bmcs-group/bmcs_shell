@@ -10,221 +10,90 @@ import numpy as np
 import math
 
 
-class WBElemSymb5ParamVersion4(bu.SymbExpr):
+class WBElemSymb5ParamXL(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
-    alpha = sp.symbols('alpha')
-    beta = sp.symbols('beta')
-    x_ur, x_ul, x_ll, x_lr = sp.symbols('x_ur, x_ul, x_ll, x_lr')
-    y_l, y_r = sp.symbols('y_r, y_r')
+    gamma = sp.symbols('gamma')
 
-    # y_r * y_l > 0
-    x_ul1_ = (
-        - sp.cos(beta) * a +
-        (
-            (sp.sin(beta) * sp.sin(alpha+beta))
-            /
-            (sp.cos(alpha+beta) + 1)
-        ) * a
-    )
+    U_ur_0 = sp.Matrix([a, b, 0])
+    U_ul_0 = sp.Matrix([-a, b, 0])
+    V_r_0 = sp.Matrix([c, 0, 0])
+    V_l_0 = sp.Matrix([-c, 0, 0])
 
-    x_ul2_ = (
-        - sp.cos(beta) * a +
-        (
-            (sp.sin(beta) * sp.sqrt(
-                sp.sin(alpha+beta)**2 * a**2 - 2*(sp.cos(alpha+beta) - 1) * (b**2-a**2)
-            ))
-            /
-            (sp.cos(alpha+beta) - 1)
-        )
-    )
+    x_ur, y_ur, z_ur = sp.symbols(r'x_ur, y_ur, z_ur')
+    x_ul, y_ul, z_ul = sp.symbols(r'x_ul, y_ul, z_ul')
 
-    y_r_ = (sp.sqrt(sp.sin(alpha)**2 * b**2
-                    - (a * sp.cos(alpha) - x_ur )**2 )
-            /
-            (sp.sin(alpha))
-            )
+    U_ur_1 = sp.Matrix([x_ur, y_ur, z_ur])
+    U_ul_1 = sp.Matrix([x_ul, y_ul, z_ul])
+    V_r_1 = sp.Matrix([c * sp.sin(gamma), 0, c * sp.cos(gamma)])
+    V_l_1 = sp.Matrix([-c * sp.sin(gamma), 0, c * sp.cos(gamma)])
+    X_UOV_r_0 = U_ur_0.T * V_r_0
+    X_VOU_l_0 = U_ul_0.T * V_l_0
+    X_UOV_r_1 = U_ur_1.T * V_r_1
+    X_VOU_l_1 = U_ul_1.T * V_l_1
+    Eq_UOV_r = sp.Eq(X_UOV_r_0[0], X_UOV_r_1[0])
+    Eq_UOV_l = sp.Eq(X_VOU_l_0[0], X_VOU_l_1[0])
+    X_VUO_r_0 = (V_r_0 - U_ur_0).T * (-U_ur_0)
+    X_VUO_l_0 = (V_l_0 - U_ul_0).T * (-U_ul_0)
+    X_VUO_r_1 = (V_r_1 - U_ur_1).T * (-U_ur_1)
+    X_VUO_l_1 = (V_l_1 - U_ul_1).T * (-U_ul_1)
+    Eq_VUO_r = sp.Eq(-X_VUO_r_0[0], -X_VUO_r_1[0])
+    Eq_VUO_l = sp.Eq(-X_VUO_l_0[0], -X_VUO_l_1[0])
 
-    y_l_ = (sp.sqrt(sp.sin(beta)**2 * b**2
-                    - (a * sp.cos(beta) + x_ur )**2 )
-            /
-            (sp.sin(beta))
-            )
+    X_UOU_0 = (U_ul_0).T * (U_ur_0)
+    X_UOU_1 = (U_ul_1).T * (U_ur_1)
+    Eq_UOU = sp.Eq(X_UOU_0[0], X_UOU_1[0])
 
-    x_ur_ = (
-        ( sp.sin(alpha) * x_ul + sp.sin(alpha + beta) * a )
-        /
-        ( sp.sin(beta) )
-    )
+    yz_ur_sol1, yz_ur_sol2 = sp.solve({Eq_UOV_r, Eq_VUO_r}, [y_ur, z_ur])
+    yz_ul_sol1, yz_ul_sol2 = sp.solve({Eq_UOV_l, Eq_VUO_l}, [y_ul, z_ul])
 
-    x_lr_ = 2*a * sp.cos(alpha) - x_ur
-    x_ll_ = -2*a * sp.cos(beta) - x_ul
+    y_ur_sol, z_ur_sol = yz_ur_sol1
+    y_ul_sol, z_ul_sol = yz_ul_sol1
 
-    z_ul_ = (a + sp.cos(beta)*x_ul)/(sp.sin(beta))
-    z_ur_ = (a - sp.cos(alpha)*x_ur)/(sp.sin(alpha))
-    z_ll_ = (a + sp.cos(beta)*x_ll)/(sp.sin(beta))
-    z_lr_ = (a - sp.cos(alpha)*x_lr)/(sp.sin(alpha))
+    subs_yz = {y_ur: y_ur_sol, z_ur: z_ur_sol,
+               y_ul: y_ul_sol, z_ul: z_ul_sol}
 
-    symb_model_params = ['alpha', 'beta', 'a', 'b', 'c', ]
+    Eq_UOU_x = Eq_UOU.subs(subs_yz)
+    Eq_UOU_x_rearr = sp.Eq(-Eq_UOU_x.args[1].args[1],
+                           -Eq_UOU_x.args[0] + Eq_UOU_x.args[1].args[0] + Eq_UOU_x.args[1].args[2])
+    Eq_UOU_x_rhs = Eq_UOU_x_rearr.args[1] ** 2 - Eq_UOU_x_rearr.args[0] ** 2
+    Eq_UOU_x_rhs_collect = sp.collect(sp.expand(Eq_UOU_x_rhs), x_ul)
+
+    A_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 2)
+    B_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 1)
+    C_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 0)
+    A, B, C = sp.symbols('A, B, C')
+
+    x_ul_sol1, x_ul_sol2 = sp.solve(A * x_ul ** 2 + B * x_ul + C, x_ul)
+
+    x_ul_ = x_ul_sol2
+    y_ur_ = y_ur_sol
+    y_ul_ = y_ul_sol
+    z_ur_ = z_ur_sol
+    z_ul_ = z_ul_sol
+
+    symb_model_params = ['gamma', 'x_ur', 'a', 'b', 'c', ]
     symb_expressions = [
-        ('x_ul1_', ()),
-        ('x_ul2_', ()),
-        ('y_l_', ('x_ur',)),
-        ('y_r_', ('x_ur',)),
-        ('x_ur_', ('x_ul',)),
-        ('x_ll_', ('x_ul',)),
-        ('x_lr_', ('x_ur',)),
+        ('x_ul_', ('A', 'B', 'C')),
+        ('y_ur_', ('x_ul',)),
+        ('y_ul_', ('x_ul',)),
+        ('z_ur_', ('x_ul',)),
         ('z_ul_', ('x_ul',)),
-        ('z_ur_', ('x_ur',)),
-        ('z_ll_', ('x_ll',)),
-        ('z_lr_', ('x_lr',)),
-    ]
-
-
-class WBElemSymb5ParamVersionX(bu.SymbExpr):
-
-    a, b, c = sp.symbols('a, b, c', positive=True)
-    alpha = sp.symbols('alpha')
-    beta = sp.symbols('beta')
-
-    sin = sp.sin
-    cos = sp.cos
-    x_ul_ = (
-        (
-                (((sin(alpha)-sin(beta)) * sin(alpha+beta) * sin(alpha) * cos(beta) * a)
-                /
-                (cos(alpha) - cos(beta)))
-                + sin(alpha) * sin(beta) * sin(alpha +beta) * a
-        )
-        /
-        (
-                sin(alpha) * (cos(alpha+beta) + 1)
-        )
-    )
-
-    x_ul = sp.symbols('x_ul')
-    x_ur = sp.symbols('x_ur')
-
-    sqrt = sp.sqrt
-    y_r_ = (
-        (
-            sqrt(
-            sin(alpha)**2 * b**2 - (a * cos(alpha) - x_ur) ** 2
-            )
-        )
-        /
-        (sin(alpha))
-    )
-
-    y_l_ = (
-        (
-            sqrt(
-            sin(beta)**2 * b**2 - (a * cos(beta) + x_ul) ** 2
-            )
-        )
-        /
-        (sin(beta))
-    )
-
-    x_ur_ = (
-        ( sin(alpha) * x_ul +sin(alpha+beta) * a)
-        /
-        ( sin(beta) )
-    )
-
-    x_ur = sp.symbols('x_ur')
-
-    x_lr_ = 2 * a * cos(alpha) - x_ur
-    x_ll_ = -2 * a * cos(beta) - x_ul
-
-    x_lr = sp.symbols('x_lr')
-    x_ll = sp.symbols('x_ll')
-
-    z_ul_ = (a + sp.cos(beta)*x_ul)/(sp.sin(beta))
-    z_ur_ = (a - sp.cos(alpha)*x_ur)/(sp.sin(alpha))
-    z_ll_ = (a + sp.cos(beta)*x_ll)/(sp.sin(beta))
-    z_lr_ = (a - sp.cos(alpha)*x_lr)/(sp.sin(alpha))
-
-    symb_model_params = ['alpha', 'beta', 'a', 'b', 'c', ]
-    symb_expressions = [
-        ('y_l_', ('x_ul',)),
-        ('y_r_', ('x_ur',)),
-        ('x_ul_', () ),
-        ('x_ur_', ('x_ul',)),
-        ('x_ll_', ('x_ul',)),
-        ('x_lr_', ('x_ur',)),
-        ('z_ul_', ('x_ul',)),
-        ('z_ur_', ('x_ur',)),
-        ('z_ll_', ('x_ll',)),
-        ('z_lr_', ('x_lr',)),
-    ]
-
-class WBElemSymb5ParamVersionEta(bu.SymbExpr):
-
-    def get_U_ur(x_ur, y_ur, z_ur, a, b, c, V_r_l):
-        U_ur_0 = sp.Matrix([a, b, 0])
-        V_r_0 = sp.Matrix([c, 0, 0])
-        UV_r_0 = V_r_0 - U_ur_0
-        L2_U_ur_0 = (U_ur_0.T * U_ur_0)[0]
-        L2_UV_r_0 = (UV_r_0.T * UV_r_0)[0]
-        U_ur_1 = sp.Matrix([x_ur, y_ur, z_ur])
-        UV_r_1 = U_ur_1 - V_r_l
-        L2_U_ur_1 = (U_ur_1.T * U_ur_1)[0]
-        L2_UV_r_1 = (UV_r_1.T * UV_r_1)[0]
-        Eq_L2_U_ur = sp.simplify(sp.Eq(L2_U_ur_1 - L2_U_ur_0, 0))
-        y_ur_sol = sp.solve(Eq_L2_U_ur, y_ur)[0]
-        Eq_L2_UV_r = sp.simplify(sp.Eq(L2_UV_r_1 - L2_UV_r_0, 0))
-        Eq_L2_UV_r_z_ur = Eq_L2_UV_r.subs(y_ur, y_ur_sol)
-        z_ur_sol = sp.solve(Eq_L2_UV_r_z_ur, z_ur)[0]
-        return sp.Matrix([x_ur, y_ur_sol.subs(z_ur, z_ur_sol), z_ur_sol])
-
-    a, b, c = sp.symbols('a, b, c', positive=True)
-    alpha = sp.symbols('alpha', positive=True)
-    V_r_l = sp.Matrix([c * sp.sin(alpha), 0, c * sp.cos(alpha)])
-
-    x_ur, y_ur, z_ur = sp.symbols('x_ur, y_ur, z_ur', positive=True)
-
-    U_ur = get_U_ur(x_ur, y_ur, z_ur, a, b, c, V_r_l)
-
-    x_ul = sp.symbols('x_ul', negative=True)
-
-    U_ul = U_ur.subs(x_ur, -x_ul)
-    U_ul[0] *= -1
-
-    UU_u_1 = U_ur - U_ul
-    L2_UU_u_1 = (UU_u_1.T * UU_u_1)[0]
-
-    eta = sp.symbols('eta')
-    x_ul_ = - eta * x_ur
-    L2_UU_u_1_eta = L2_UU_u_1.subs(x_ul, x_ul_)
-
-    Eq_L2_UU_u_1 = sp.Eq(L2_UU_u_1_eta - (2 * a) ** 2, 0)
-    x_ur_sol_1, x_ur_sol_2 = sp.solve(Eq_L2_UU_u_1.subs(alpha, 0), x_ur)
-
-    x_ur_ = x_ur_sol_1
-    y_r_ = U_ur[1]
-    z_ur_ = U_ur[2]
-    y_l_ = U_ul[1]
-    z_ul_ = U_ul[2]
-
-    symb_model_params = ['alpha', 'eta', 'a', 'b', 'c', ]
-    symb_expressions = [
-        ('y_l_', ('x_ul',)),
-        ('y_r_', ('x_ur',)),
-        ('x_ul_', ('x_ur',) ),
-        ('x_ur_', ()),
-        ('z_ul_', ('x_ul',)),
-        ('z_ur_', ('x_ur',)),
+        ('A_', ()),
+        ('B_', ()),
+        ('C_', ()),
+        ('V_r_1', ()),
+        ('V_l_1', ()),
     ]
 
 class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     name = 'waterbomb cell 5p'
-    symb_class = WBElemSymb5ParamVersion4
+    symb_class = WBElemSymb5ParamXL
 
     plot_backend = 'k3d'
 
-    alpha = bu.Float(np.pi/2+1e-5, GEO=True)
-    eta = bu.Float(1, GEO=True)
+    gamma = bu.Float(np.pi/2+1e-5, GEO=True)
+    x_ur = bu.Float(1000, GEO=True)
     a = bu.Float(1000, GEO=True)
     b = bu.Float(1000, GEO=True)
     c = bu.Float(1000, GEO=True)
@@ -235,10 +104,10 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     show_wireframe = tr.Bool
 
     ipw_view = bu.View(
-        bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
+        bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
-        bu.Item('eta', latex=r'\eta', editor=bu.FloatRangeEditor(
-            low=1e-6, high=10, n_steps=100, continuous_update=True)),
+        bu.Item('x_ur', latex=r'x^\urcorner', editor=bu.FloatRangeEditor(
+            low=1e-6, high=2000, n_steps=100, continuous_update=True)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
@@ -253,61 +122,40 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     '''
     @tr.cached_property
     def _get_X_Ia(self):
-        alpha = self.alpha
+        gamma = self.gamma
+        alpha = np.pi/2 - gamma
 
-        x_ur = self.symb.get_x_ur_()
+        x_ur = self.x_ur
+        A = self.symb.get_A_()
+        B = self.symb.get_B_()
+        C = self.symb.get_C_()
 
-        y_r = self.symb.get_y_r_(x_ur)
-        y_l = self.symb.get_y_l_(x_ur)
-
-        prod_y_rl = y_r * y_l
-        if prod_y_rl > 0:
-            x_ul = self.symb_get_x_ul1()
-        else:
-            x_ul = self.symb_get_x_ul2()
-
-        x_lr = self.symb.get_x_lr_(x_ur)
-        x_ll = self.symb.get_x_ll_(x_ul)
-
+        x_ul = self.symb.get_x_ul_(A, B, C)
+        y_ur = self.symb.get_y_ur_(x_ul)
+        y_ul = self.symb.get_y_ul_(x_ul)
+        z_ur = self.symb.get_z_ur_(x_ul)
         z_ul = self.symb.get_z_ul_(x_ul)
-        z_ur = self.symb.get_z_ur_(x_ur)
-        z_ll = self.symb.get_z_ll_(x_ll)
-        z_lr = self.symb.get_z_lr_(x_lr)
 
-        return np.array([
-            [0,0,0], # 0 point
-            [x_ur, y_r, z_ur], #U++
-            [x_ul, y_l, z_ul], #U-+  ul
-            [x_lr,-y_r, z_lr], #U+-
-            [x_ll,-y_l, z_ll], #U--
-            [self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
-            [-self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
-            ], dtype=np.float_
-        )
-
-
-    def _get_X_Ia_Eta(self):
-        alpha = self.alpha
-
-        x_ur = self.symb.get_x_ur_()
-        x_ul = self.symb.get_x_ul_(x_ur)
-        y_r = self.symb.get_y_r_(x_ur)
-        y_l = self.symb.get_y_l_(x_ul)
-        z_ul = self.symb.get_z_ul_(x_ul)
-        z_ur = self.symb.get_z_ur_(x_ur)
-
-        x_lr = x_ur
         x_ll = x_ul
-        z_lr = z_ur
+        x_lr = x_ur
+        y_ll = - y_ul
+        y_lr = - y_ur
         z_ll = z_ul
+        z_lr = z_ur
+
+        V_r_1 = self.symb.get_V_r_1().flatten()
+        V_l_1 = self.symb.get_V_l_1().flatten()
+
+        print('V_r_1', V_r_1)
+
         return np.array([
             [0,0,0], # 0 point
-            [x_ur, y_r, z_ur], #U++
-            [x_ul, y_l, z_ul], #U-+  ul
-            [x_lr,-y_r, z_lr], #U+-
-            [x_ll,-y_l, z_ll], #U--
-            [self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
-            [-self.c * sp.sin(alpha), 0, self.c * sp.cos(alpha)],
+            [x_ur, y_ur, z_ur], #U++
+            [x_ul, y_ul, z_ul], #U-+  ul
+            [x_lr, y_lr, z_lr], #U+-
+            [x_ll, y_ll, z_ll], #U--
+            V_r_1, # [self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],
+            V_l_1, # [-self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],
             ], dtype=np.float_
         )
 
