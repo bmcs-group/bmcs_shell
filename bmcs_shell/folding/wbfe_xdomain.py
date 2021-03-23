@@ -154,7 +154,7 @@ class XWBDomain(XDomainFE):
         #K2_Eicjd = np.einsum('Eac,Edb,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
         return K2_Eiajb
 
-    bc_J_F_xyz= tr.Property(depends_on='+GEO')
+    bc_J_F_xyz= tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_F_xyz(self):
         ix2 = int((self.mesh.n_phi_plus) / 2)
@@ -162,7 +162,7 @@ class XWBDomain(XDomainFE):
         _, idx_remap = self.mesh.unique_node_map
         return idx_remap[F_I]
 
-    bc_J_xyz = tr.Property(depends_on='+GEO')
+    bc_J_xyz = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_xyz(self):
         I_M = self.mesh.I_CDij[(0, -1),:,(0, -1),:].flatten()
@@ -170,7 +170,7 @@ class XWBDomain(XDomainFE):
         J_M = idx_remap[I_M]
         return J_M
 
-    bc_J_x = tr.Property(depends_on='+GEO')
+    bc_J_x = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_x(self):
         I_M = self.mesh.I_CDij[:,(0, -1),:,(0, -1)].flatten()
@@ -178,29 +178,29 @@ class XWBDomain(XDomainFE):
         J_M = idx_remap[I_M]
         return J_M
 
-    def plot_k3d(self, k3d_plot):
+    def setup_plot(self, pb):
         X_Ia = self.mesh.X_Ia.astype(np.float32)
         I_Fi = self.mesh.I_Fi.astype(np.uint32)
 
         X_Ma = X_Ia[self.bc_J_xyz]
         self.k3d_fixed_xyz = k3d.points(X_Ma)
-        k3d_plot += self.k3d_fixed_xyz
+        pb.plot_fig += self.k3d_fixed_xyz
 
         X_Ma = X_Ia[self.bc_J_x]
         self.k3d_fixed_x = k3d.points(X_Ma, color=0x22ffff)
-        k3d_plot += self.k3d_fixed_x
+        pb.plot_fig += self.k3d_fixed_x
 
         X_Ma = X_Ia[self.bc_J_F_xyz]
         self.k3d_load_z = k3d.points(X_Ma, color=0xff22ff)
-        k3d_plot += self.k3d_load_z
+        pb.plot_fig += self.k3d_load_z
 
         self.k3d_mesh = k3d.mesh(X_Ia,
                                  I_Fi,
                                  color=0x999999,
                                  side='double')
-        k3d_plot += self.k3d_mesh
+        pb.plot_fig += self.k3d_mesh
 
-    def update_plot(self, k3d_plot):
+    def update_plot(self, pb):
         X_Ia = self.mesh.X_Ia.astype(np.float32)
         I_Fi = self.mesh.I_Fi.astype(np.uint32)
 

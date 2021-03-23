@@ -45,10 +45,13 @@ class WBShell(bu.InteractiveModel):
 
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi/2, n_steps=100, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+            low=1e-6, high=np.pi/2, n_steps=100, continuous_update=False)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100,
+                                                           continuous_update=False)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100,
+                                                           continuous_update=False)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100,
+                                                           continuous_update=False)),
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
     )
@@ -267,6 +270,9 @@ class WBShell(bu.InteractiveModel):
             pb.objects['k3d_mesh_wireframe'] = k3d_mesh_wireframe
 
     def update_plot(self, pb):
+
+        with bu.print_output:
+            print('updating plot')
 
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)

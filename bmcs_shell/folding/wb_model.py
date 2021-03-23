@@ -40,7 +40,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
     wb_mesh = tr.Instance(FEWBShellMesh,())
 
     xdomain = tr.Property(tr.Instance(XWBDomain),
-                         depends_on=itags_str)
+                         depends_on="state_changed")
     '''Discretization object.
     '''
     @tr.cached_property
@@ -50,7 +50,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
             integ_factor=self.h
         )
 
-    domains = tr.Property(depends_on=itags_str)
+    domains = tr.Property(depends_on="state_changed")
 
     @tr.cached_property
     def _get_domains(self):
@@ -58,7 +58,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
 
     tree = ['wb_mesh', 'tmodel']
 
-    bc_loaded = tr.Property(depends_on=itags_str)
+    bc_loaded = tr.Property(depends_on="state_changed")
 
     @tr.cached_property
     def _get_bc_loaded(self):
@@ -72,7 +72,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
                      for dof in loaded_dofs]
         return bc_loaded, loaded_nodes, loaded_dofs
 
-    bc_fixed = tr.Property(depends_on=itags_str)
+    bc_fixed = tr.Property(depends_on="state_changed")
 
     @tr.cached_property
     def _get_bc_fixed(self):
@@ -87,7 +87,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
                    for dof in fixed_dofs]
         return bc_fixed, fixed_nodes, fixed_dofs
 
-    bc = tr.Property(depends_on=itags_str)
+    bc = tr.Property(depends_on="state_changed")
     @tr.cached_property
     def _get_bc(self):
         bc_fixed, _, _ = self.bc_fixed

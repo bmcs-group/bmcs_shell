@@ -198,12 +198,12 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
-    def plot_k3d(self, k3d_plot):
+    def setup_plot(self, pb):
         self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
                                  self.I_Fi.astype(np.uint32),
                                  color=0x999999,
                                  side='double')
-        k3d_plot += self.wb_mesh
+        pb.plot_fig += self.wb_mesh
 
         if self.show_wireframe:
             self.wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
@@ -211,9 +211,11 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
                                             color=0x000000,
                                             wireframe=True)
 
-            k3d_plot += self.wb_mesh_wireframe
+            pb.plot_fig += self.wb_mesh_wireframe
 
-    def update_plot(self, k3d_plot):
+    def update_plot(self, pb):
+        with bu.print_output:
+            print('in cell update_plot')
         self._assign_mesh_data(self.wb_mesh)
         if self.show_wireframe:
             self._assign_mesh_data(self.wb_mesh_wireframe)
