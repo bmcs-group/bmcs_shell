@@ -4,7 +4,7 @@ from .wbfe_fets2d3u1m import FETS2D3U1M
 from ibvpy.mathkit.tensor import DELTA23_ab
 from bmcs_shell.folding.wb_shell import WBShell
 import numpy as np
-from oricreate.util import \
+from .vector_acos import \
     get_theta, get_theta_du
 import k3d
 from ibvpy.mathkit.linalg.sys_mtx_assembly import SysMtxArray

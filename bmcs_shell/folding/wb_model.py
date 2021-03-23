@@ -6,7 +6,7 @@ from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
 from ibvpy.tmodel.viz3d_scalar_field import \
     Vis3DStateField, Viz3DScalarField
-from bmcs_shell.folding.wb_cell_4p import WBElem
+from bmcs_shell.folding.wb_cell_4p import WBElem4Param as WBElem
 import bmcs_utils.api as bu
 from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
@@ -55,6 +55,8 @@ class WBModel(TStepBC,bu.InteractiveModel):
     @tr.cached_property
     def _get_domains(self):
         return [(self.xdomain, self.tmodel)]
+
+    tree = ['wb_mesh', 'tmodel']
 
     bc_loaded = tr.Property(depends_on=itags_str)
 
@@ -112,7 +114,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
         U_max = np.max(np.fabs(U_1))
         return U_max
 
-    def plot_k3d(self, k3d_plot):
+    def setup_plot(self, pb):
 
         self.run()
         U_1 = self.hist.U_t[-1]
@@ -124,26 +126,34 @@ class WBModel(TStepBC,bu.InteractiveModel):
         _, loaded_nodes, _ = self.bc_loaded
 
         X_Ma = X1_Id[fixed_nodes]
-        self.k3d_fixed_nodes = k3d.points(X_Ma, color=0x22ffff, point_size=100)
-        k3d_plot += self.k3d_fixed_nodes
+
+        k3d_fixed_nodes = k3d.points(X_Ma, color=0x22ffff, point_size=100)
+        pb.plot_fig += k3d_fixed_nodes
+        pb.objects['k3d_fixed_nodes'] = k3d_fixed_nodes
+
         X_Ma = X1_Id[loaded_nodes]
-        self.k3d_loaded_nodes = k3d.points(X_Ma, color=0xff22ff, point_size=100)
-        k3d_plot += self.k3d_loaded_nodes
 
-        self.wb_mesh_0 = k3d.mesh(self.xdomain.X_Id.astype(np.float32),
-                                         I_Ei,
-                                         color=0x999999, opacity=0.5,
-                                         side='double')
-        k3d_plot += self.wb_mesh_0
-        self.wb_mesh_1 = k3d.mesh(X1_Id,
-                                          I_Ei,
-                                          color_map=k3d.colormaps.basic_color_maps.Jet,
-                                          attribute=U_1.reshape(-1, 3)[:, 2],
-                                          color_range=[np.min(U_1), np.max(U_1)],
-                                          side='double')
-        k3d_plot += self.wb_mesh_1
+        k3d_loaded_nodes = k3d.points(X_Ma, color=0xff22ff, point_size=100)
+        pb.plot_fig += k3d_loaded_nodes
+        pb.objects['k3d_loaded_nodes'] = k3d_loaded_nodes
 
-    def update_plot(self, k3d_plot):
+        wb_mesh_0 = k3d.mesh(self.xdomain.X_Id.astype(np.float32),
+                             I_Ei,
+                             color=0x999999, opacity=0.5,
+                             side='double')
+        pb.plot_fig += wb_mesh_0
+        pb.objects['wb_mesh_0'] = wb_mesh_0
+
+        wb_mesh_1 = k3d.mesh(X1_Id,
+                              I_Ei,
+                              color_map=k3d.colormaps.basic_color_maps.Jet,
+                              attribute=U_1.reshape(-1, 3)[:, 2],
+                              color_range=[np.min(U_1), np.max(U_1)],
+                              side='double')
+        pb.plot_fig += wb_mesh_1
+        pb.objects['wb_mesh_1'] = wb_mesh_1
+
+    def update_plot(self, pb):
         X1_Id = self.xdomain.mesh.X_Id
         s = self.sim
         s.reset()
@@ -160,10 +170,10 @@ class WBModel(TStepBC,bu.InteractiveModel):
         _, fixed_nodes, _ = self.bc_fixed
         _, loaded_nodes, _ = self.bc_loaded
 
-        self.k3d_fixed_nodes.positions = X1_Id[fixed_nodes]
-        self.k3d_loaded_nodes.positions = X1_Id[loaded_nodes]
+        pb.objects['k3d_fixed_nodes'].positions = X1_Id[fixed_nodes]
+        pb.objects['k3d_loaded_nodes'].positions = X1_Id[loaded_nodes]
 
-        mesh = self.wb_mesh_1
+        mesh = pb.objects['wb_mesh_1']
         mesh.vertices = X1_Id
         mesh.indices = I_Ei
         mesh.attributes = U_1.reshape(-1, 3)[:, 2]

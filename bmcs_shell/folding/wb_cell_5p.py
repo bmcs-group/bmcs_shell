@@ -152,8 +152,8 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
             [x_ul, y_ul, z_ul], #U-+  ul
             [x_lr, y_lr, z_lr], #U+-
             [x_ll, y_ll, z_ll], #U--
-            V_r_1, # [self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],
-            V_l_1, # [-self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],
+            V_r_1, 
+            V_l_1,
             ], dtype=np.float_
         )
 

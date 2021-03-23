@@ -4,7 +4,7 @@
 import bmcs_utils.api as bu
 import k3d
 from bmcs_shell.folding.wb_cell_4p import \
-    WBElem, axis_angle_to_q, qv_mult
+    WBElem4Param as WBElem, axis_angle_to_q, qv_mult
 import traits.api as tr
 import numpy as np
 
@@ -12,6 +12,9 @@ class WBShell(bu.InteractiveModel):
     name = 'Waterbomb shell'
 
     wb_cell = tr.Instance(WBElem, ())
+
+    tree = ['wb_cell']
+
     plot_backend = 'k3d'
 
     n_phi_plus = bu.Int(4, GEO=True)
@@ -226,7 +229,8 @@ class WBShell(bu.InteractiveModel):
                       self.wb_cell.I_boundary[np.newaxis, np.newaxis, :, :])
         return I_CDij_map
 
-    def plot_k3d(self, k3d_plot):
+    def setup_plot(self, pb):
+
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
@@ -235,28 +239,35 @@ class WBShell(bu.InteractiveModel):
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
 
-        self.k3d_points = k3d.points(X_Ma)
-        k3d_plot += self.k3d_points
+        k3d_points = k3d.points(X_Ma)
+        pb.objects['k3d_points'] = k3d_points
+        pb.plot_fig += k3d_points
 
-        self.k3d_mesh = k3d.mesh(X_Ia,
+        k3d_mesh = k3d.mesh(X_Ia,
                                  I_Fi,
                                  color=0x999999,
                                  side='double')
 
-        k3d_plot += self.k3d_mesh
+        pb.objects['k3d_mesh'] = k3d_mesh
+        pb.plot_fig += k3d_mesh
 
         if self.show_nodes:
             for I, X_a in enumerate(X_Ia):
-                k3d_plot += k3d.text('%g' % I, tuple(X_a), label_box=False)
+                k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False)
+                pb.plot_fig += k3d_text
+                # TODO - append to list
+                pb.objects['k3d_text'] = k3d_text
 
         if self.show_wireframe:
-            self.k3d_mesh_wireframe = k3d.mesh(X_Ia,
-                                I_Fi,
-                                color=0x000000,
-                                wireframe=True)
-            k3d_plot += self.k3d_mesh_wireframe
+            k3d_mesh_wireframe = k3d.mesh(X_Ia,
+                                          I_Fi,
+                                          color=0x000000,
+                                          wireframe=True)
+            pb.plot_fig == k3d_mesh_wireframe
+            pb.objects['k3d_mesh_wireframe'] = k3d_mesh_wireframe
 
-    def update_plot(self, k3d_plot):
+    def update_plot(self, pb):
+
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
@@ -265,13 +276,13 @@ class WBShell(bu.InteractiveModel):
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
 
-        self.k3d_points.positions = X_Ma
-        mesh = self.k3d_mesh
+        pb.objects['k3d_points'].positions = X_Ma
+        mesh = pb.objects['k3d_mesh']
         mesh.vertices = X_Ia
         mesh.indices = I_Fi
 
         if self.show_wireframe:
-            wireframe = self.k3d_mesh_wireframe
+            wireframe = pb.objects['k3d_mesh_wireframe']
             wireframe.vertices = X_Ia
             wireframe.indices = I_Fi
 
