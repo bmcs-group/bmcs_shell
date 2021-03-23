@@ -146,8 +146,6 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         V_r_1 = self.symb.get_V_r_1().flatten()
         V_l_1 = self.symb.get_V_l_1().flatten()
 
-        print('V_r_1', V_r_1)
-
         return np.array([
             [0,0,0], # 0 point
             [x_ur, y_ur, z_ur], #U++
