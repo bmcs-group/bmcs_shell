@@ -268,7 +268,7 @@ class WBShell(bu.InteractiveModel):
                                           I_Fi,
                                           color=0x000000,
                                           wireframe=True)
-            pb.plot_fig == k3d_mesh_wireframe
+            pb.plot_fig += k3d_mesh_wireframe
             pb.objects['k3d_mesh_wireframe'] = k3d_mesh_wireframe
 
     def update_plot(self, pb):
