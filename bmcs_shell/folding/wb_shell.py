@@ -28,8 +28,8 @@ class WBShell(bu.InteractiveModel):
     c_high = bu.Float(2000)
 
 
-    show_wireframe = tr.Bool
-    show_nodes = bu.Bool(False)
+    show_wireframe = bu.Bool(True,GEO=True)
+    show_nodes = bu.Bool(False,GEO=True)
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -54,6 +54,8 @@ class WBShell(bu.InteractiveModel):
                                                            continuous_update=False)),
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
+        bu.Item('show_wireframe'),
+        bu.Item('show_nodes')
     )
 
     def get_phi_range(self, delta_phi):
@@ -270,9 +272,6 @@ class WBShell(bu.InteractiveModel):
             pb.objects['k3d_mesh_wireframe'] = k3d_mesh_wireframe
 
     def update_plot(self, pb):
-
-        with bu.print_output:
-            print('updating plot')
 
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)

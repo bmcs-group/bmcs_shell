@@ -143,6 +143,13 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         z_ll = z_ul
         z_lr = z_ur
 
+        x_ll = -x_ur
+        x_lr = -x_ul
+        y_ll = - y_ur
+        y_lr = - y_ul
+        z_ll = z_ur
+        z_lr = z_ul
+
         V_r_1 = self.symb.get_V_r_1().flatten()
         V_l_1 = self.symb.get_V_l_1().flatten()
 

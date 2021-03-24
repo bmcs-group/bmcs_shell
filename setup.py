@@ -14,11 +14,11 @@ from setuptools import find_packages, setup, Command
 # Package meta-data.
 NAME = 'bmcs_shell'
 DESCRIPTION = "Model components for analysis of BMCS shells."
-URL = 'https://github.com/bmcs-group/bmcs_cross_section'
+URL = 'https://github.com/bmcs-group/bmcs_shell'
 EMAIL = 'rostislav.chudoba@rwt-aachen.de'
 AUTHOR = 'BMCS-Group'
 REQUIRES_PYTHON = '>=3.6.0'
-from bmcs_cross_section.version import __version__
+from bmcs_shell.version import __version__
 VERSION = __version__
 
 # What packages are required for this module to be executed?

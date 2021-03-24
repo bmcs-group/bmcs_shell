@@ -1,8 +1,8 @@
 Metadata-Version: 2.1
 Name: bmcs-shell
-Version: 0.0.3a0
+Version: 0.0.1a0
 Summary: Model components for analysis of BMCS shells.
-Home-page: https://github.com/bmcs-group/bmcs_cross_section
+Home-page: https://github.com/bmcs-group/bmcs_shell
 Author: BMCS-Group
 Author-email: rostislav.chudoba@rwt-aachen.de
 License: MIT
