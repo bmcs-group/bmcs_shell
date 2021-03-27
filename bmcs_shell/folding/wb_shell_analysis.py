@@ -1,6 +1,4 @@
 import k3d
-from bmcs_shell.folding.wbfe_xdomain import \
-    FEWBShellMesh,FETriangularMesh, XWBDomain
 import numpy as np
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
@@ -12,15 +10,15 @@ from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
 import traits.api as tr
 from ibvpy.bcond import BCDof
-from bmcs_shell.folding.wbfe_xdomain import XWBDomain
-import pygmsh
+from .wb_xdomain_fe import WBXDomainFE
+from .wb_shell_geometry import WBShellGeometry
+from .wb_fe_triangular_mesh import WBShellFETriangularMesh
 
 itags_str = '+GEO,+MAT,+BC'
 
-import matplotlib.cm
-class WBModel(TStepBC, bu.InteractiveModel):
+class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
-    name = 'Deflection'
+    name = 'WBShellPhysicalModel'
 
     F = bu.Float(-1000, BC=True)
     h = bu.Float(-1000, GEO=True)
@@ -37,18 +35,23 @@ class WBModel(TStepBC, bu.InteractiveModel):
     def _get_n_phi_plus(self):
         return self.xdomain.mesh.n_phi_plus
 
-    tmodel = tr.Instance(MATS2DElastic,())
+    geo = bu.Instance(WBShellGeometry,())
 
-    wb_mesh = tr.Instance(FEWBShellMesh,())
+    tmodel = bu.Instance(MATS2DElastic,())
 
-    xdomain = tr.Property(tr.Instance(XWBDomain),
+    tree = ['geo', 'tmodel']
+
+    xdomain = tr.Property(tr.Instance(WBXDomainFE),
                          depends_on="state_changed")
     '''Discretization object.
     '''
     @tr.cached_property
     def _get_xdomain(self):
-        return XWBDomain(
-            mesh=self.wb_mesh,
+        # prepare the mesh generator
+        fe_mesh = WBShellFETriangularMesh(geo=self.geo)
+        # construct the domain with the kinematic strain mapper and stress integrator
+        return WBXDomainFE(
+            fe_mesh=fe_mesh,
             integ_factor=self.h
         )
 
@@ -58,7 +61,7 @@ class WBModel(TStepBC, bu.InteractiveModel):
     def _get_domains(self):
         return [(self.xdomain, self.tmodel)]
 
-    tree = ['wb_mesh', 'tmodel']
+    tree = ['geo', 'tmodel']
 
     bc_loaded = tr.Property(depends_on="state_changed")
 
@@ -190,17 +193,3 @@ class WBModel(TStepBC, bu.InteractiveModel):
         U_loaded = np.average(U_to[:, loaded_dofs], axis=-1)
         return U_loaded, F_loaded
 
-    def get_mesh(self):
-
-        X_Id = self.wb_mesh.X_Id
-        I_Fi = self.wb_mesh.I_Fi
-        mesh_size = np.linalg.norm(X_Id[1]-X_Id[0])/10
-
-        with pygmsh.geo.Geometry() as geom:
-            for i, Fi in enumerate(I_Fi):
-                geom.add_polygon(X_Id[I_Fi][i], mesh_size=mesh_size)
-            mesh = geom.generate_mesh()
-
-        mesh.write("test_shell_mesh.vtk")
-
-        return mesh

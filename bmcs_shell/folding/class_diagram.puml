@@ -13,12 +13,12 @@ WBTessellation --> WBCell
 class FETriangularMesh{
 }
 
-class WBShellFETriangularMesh{
+class WBShellGeometry{
 }
 
-WBShellFETriangularMesh --|> WBTessellation
+WBShellGeometry --|> WBTessellation
 
-WBShellFETriangularMesh --|> FETriangularMesh
+WBShellGeometry <-- FETriangularMesh
 
 
 class TModel{
@@ -35,10 +35,10 @@ class WBXDomainFE{
 XDomainFE --|> XModel
 WBXDomainFE --|> XDomainFE
 
-WBXDomainFE --> WBShellFETriangularMesh
+WBXDomainFE --> FETriangularMesh
 
-WBModel ..> WBShellFETriangularMesh
-WBModel --> TModel
-WBModel --> WBXDomainFE
+WBShellAnalysis ..> WBShellGeometry
+WBShellAnalysis --> TModel
+WBShellAnalysis --> WBXDomainFE
 
 @enduml

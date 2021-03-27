@@ -5,6 +5,7 @@ dependencies:
 - appmode
 - jupyter_contrib_nbextensions
 - traits
+- importlib-resources
 - matplotlib-base
 - numpy
 - scipy
@@ -12,9 +13,11 @@ dependencies:
 - k3d
 - ipywidgets
 - ipympl
+- gmsh
 - pip
 - pip:
   - -e .
   - bmcs-utils
   - bmcs-ibvpy
+  - gmsh
   - pygmsh

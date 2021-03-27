@@ -20,13 +20,15 @@ EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
 EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 
 from .fe_triangular_mesh import FETriangularMesh
+from .wb_fe_triangular_mesh import WBShellFETriangularMesh
 from .xdomain_fe_grid import XDomainFE
 
 class WBXDomainFE(XDomainFE):
     '''
     Finite element discretization with dofs and mappings derived from the FE definition
     '''
-    mesh = tr.Instance(FETriangularMesh, ())
+
+    mesh = tr.Instance(WBShellFETriangularMesh, ())
     fets = tr.DelegatesTo('mesh')
 
     change = tr.Event(GEO=True)
@@ -123,18 +125,22 @@ class WBXDomainFE(XDomainFE):
         #K2_Eicjd = np.einsum('Eac,Edb,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
         return K2_Eiajb
 
+    I_CDij = tr.Property
+    def _get_I_CDij(self):
+        return self.mesh.I_CDij
+
     bc_J_F_xyz= tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_F_xyz(self):
         ix2 = int((self.mesh.n_phi_plus) / 2)
-        F_I = self.mesh.I_CDij[ix2, :, 0, :].flatten()
+        F_I = self.I_CDij[ix2, :, 0, :].flatten()
         _, idx_remap = self.mesh.unique_node_map
         return idx_remap[F_I]
 
     bc_J_xyz = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_xyz(self):
-        I_M = self.mesh.I_CDij[(0, -1),:,(0, -1),:].flatten()
+        I_M = self.I_CDij[(0, -1), :, (0, -1), :].flatten()
         _, idx_remap = self.mesh.unique_node_map
         J_M = idx_remap[I_M]
         return J_M
@@ -142,7 +148,7 @@ class WBXDomainFE(XDomainFE):
     bc_J_x = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_bc_J_x(self):
-        I_M = self.mesh.I_CDij[:,(0, -1),:,(0, -1)].flatten()
+        I_M = self.I_CDij[:, (0, -1), :, (0, -1)].flatten()
         _, idx_remap = self.mesh.unique_node_map
         J_M = idx_remap[I_M]
         return J_M
