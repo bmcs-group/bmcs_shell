@@ -8,7 +8,9 @@ from bmcs_shell.folding.wb_cell_4p import \
 import traits.api as tr
 import numpy as np
 
-class WBShell(bu.InteractiveModel):
+import pygmsh
+
+class WBTessellation(bu.InteractiveModel):
     name = 'Waterbomb shell'
 
     wb_cell = tr.Instance(WBElem, ())
@@ -174,7 +176,6 @@ class WBShell(bu.InteractiveModel):
     def _get_I_Fi(self):
         _, idx_remap = self.unique_node_map
         return idx_remap[self.I_cells_Fi]
-
 
     node_match_threshold = tr.Property(depends_on='+GEO')
     def _get_node_match_threshold(self):

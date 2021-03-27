@@ -1,6 +1,6 @@
 import k3d
-from bmcs_shell.folding.wbfe_xdomain import \
-    FEWBShellMesh,FETriangularMesh, XWBDomain
+from bmcs_shell.folding.wb_xdomain_fe import \
+    WBShellFETriangularMesh,FETriangularMesh, WBXDomainFE
 import numpy as np
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
@@ -12,7 +12,7 @@ from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
 import traits.api as tr
 from ibvpy.bcond import BCDof
-from bmcs_shell.folding.wbfe_xdomain import XWBDomain
+from bmcs_shell.folding.wb_xdomain_fe import WBXDomainFE
 itags_str = '+GEO,+MAT,+BC'
 
 import matplotlib.cm
@@ -37,15 +37,15 @@ class WBModel(TStepBC,bu.InteractiveModel):
 
     tmodel = tr.Instance(MATS2DElastic,())
 
-    wb_mesh = tr.Instance(FEWBShellMesh,())
+    wb_mesh = tr.Instance(WBShellFETriangularMesh, ())
 
-    xdomain = tr.Property(tr.Instance(XWBDomain),
-                         depends_on="state_changed")
+    xdomain = tr.Property(tr.Instance(WBXDomainFE),
+                          depends_on="state_changed")
     '''Discretization object.
     '''
     @tr.cached_property
     def _get_xdomain(self):
-        return XWBDomain(
+        return WBXDomainFE(
             mesh=self.wb_mesh,
             integ_factor=self.h
         )
@@ -77,7 +77,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
     @tr.cached_property
     def _get_bc_fixed(self):
         xdomain, _ = self.domains[0]
-        fixed_xyz_nodes = xdomain.bc_J_xyz
+        fixed_xyz_nodes = xdomain.bc_J_xy
         fixed_x_nodes = xdomain.bc_J_x
         fixed_nodes = np.unique(np.hstack([fixed_xyz_nodes, fixed_x_nodes]))
         fixed_xyz_dofs = (fixed_xyz_nodes[:, np.newaxis] * 3 + np.arange(3)[np.newaxis, :]).flatten()

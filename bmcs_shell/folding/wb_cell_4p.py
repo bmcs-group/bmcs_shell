@@ -116,9 +116,12 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
     )
 
     n_I = tr.Property
@@ -200,9 +203,9 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
 
     def setup_plot(self, pb):
         self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
-                                 self.I_Fi.astype(np.uint32),
-                                 color=0x999999,
-                                 side='double')
+                                self.I_Fi.astype(np.uint32),
+                                color=0x999999,
+                                side='double')
         pb.plot_fig += self.wb_mesh
 
         if self.show_wireframe:

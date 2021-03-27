@@ -385,9 +385,3 @@ class XDomainFEGrid(XDomainFE):
                       fets_eval=self.fets)
 
 
-if __name__ == '__main__':
-    from ibvpy.fets.fets1D5.fets1d52ulrhfatigue import FETS1D52ULRHFatigue
-    xd = XDomainFEGrid(coord_max=(1,), shape=(1,),
-                       dim_u=2, fets=FETS1D52ULRHFatigue())
-    print(xd.BB_Emicjdabef.shape)
-    print(xd.get_vtk_cell_data('nodes', 0, 0))

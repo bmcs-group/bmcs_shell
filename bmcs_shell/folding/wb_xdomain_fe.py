@@ -1,8 +1,6 @@
 
 import traits.api as tr
-from .wbfe_fets2d3u1m import FETS2D3U1M
 from ibvpy.mathkit.tensor import DELTA23_ab
-from bmcs_shell.folding.wb_shell import WBShell
 import numpy as np
 from .vector_acos import \
     get_theta, get_theta_du
@@ -21,39 +19,10 @@ EPS = np.zeros((3, 3, 3), dtype='f')
 EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
 EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 
-from ibvpy.mesh.i_fe_uniform_domain import IFEUniformDomain
+from .fe_triangular_mesh import FETriangularMesh
 from .xdomain_fe_grid import XDomainFE
 
-
-
-@tr.provides(IFEUniformDomain)
-class FETriangularMesh(tr.HasStrictTraits):
-
-    X_Id = tr.Array(np.float_, value=[[0,0, 0], [2,0, 0], [2,2,0], [2,0,0], [1,1,0]])
-    I_Fi = tr.Array(np.int_, value=[[0,1,4],
-                                    [1,2,4],
-                                    [2,3,4],
-                                    [3,0,4]])
-
-    fets = tr.Instance(FETS2D3U1M, ())
-
-    n_nodal_dofs = tr.DelegatesTo('fets')
-    dof_offset = tr.Int(0)
-
-    n_active_elems = tr.Property
-    def _get_n_active_elems(self):
-        return len(self.I_Fi)
-
-
-@tr.provides(IFEUniformDomain)
-class FEWBShellMesh(WBShell, FETriangularMesh):
-
-    X_Id = tr.Property
-    def _get_X_Id(self):
-        return self.X_Ia
-
-
-class XWBDomain(XDomainFE):
+class WBXDomainFE(XDomainFE):
     '''
     Finite element discretization with dofs and mappings derived from the FE definition
     '''
