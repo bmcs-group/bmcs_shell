@@ -17,6 +17,8 @@ class WBShellFETriangularMesh(FETriangularMesh):
     geo = bu.Instance(WBShellGeometry)
 
     I_CDij = tr.DelegatesTo('geo')
+    unique_node_map = tr.DelegatesTo('geo')
+    n_phi_plus = tr.DelegatesTo('geo')
 
     direct_mesh = bu.Bool(False, DSC=True)
 

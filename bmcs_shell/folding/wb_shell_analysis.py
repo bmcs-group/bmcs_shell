@@ -2,12 +2,7 @@ import k3d
 import numpy as np
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
-from ibvpy.tmodel.viz3d_scalar_field import \
-    Vis3DStateField, Viz3DScalarField
-from bmcs_shell.folding.wb_cell_4p import WBElem4Param as WBElem
 import bmcs_utils.api as bu
-from ibvpy.tmodel.viz3d_tensor_field import \
-    Vis3DTensorField, Viz3DTensorField
 import traits.api as tr
 from ibvpy.bcond import BCDof
 from .wb_xdomain_fe import WBXDomainFE
@@ -29,6 +24,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         bu.Item('h',
                 editor=bu.FloatRangeEditor(low=1, high=100, n_steps=100),
                 continuous_update=False),
+        time_editor=bu.ProgressEditor(run_method='run',
+                                      reset_method='reset',
+                                      interrupt_var='interrupt',
+                                      time_var='t',
+                                      time_max='t_max'                                      )
     )
 
     n_phi_plus = tr.Property()
@@ -48,11 +48,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     @tr.cached_property
     def _get_xdomain(self):
         # prepare the mesh generator
-        fe_mesh = WBShellFETriangularMesh(geo=self.geo)
+        mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
         # construct the domain with the kinematic strain mapper and stress integrator
         return WBXDomainFE(
-            fe_mesh=fe_mesh,
-            integ_factor=self.h
+            mesh=mesh,
+            integ_factor=self.h,
         )
 
     domains = tr.Property(depends_on="state_changed")
@@ -62,6 +62,34 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         return [(self.xdomain, self.tmodel)]
 
     tree = ['geo', 'tmodel']
+
+    def reset(self):
+        self.sim.reset()
+
+    t = tr.Property()
+
+    def _get_t(self):
+        return self.sim.t
+
+    def _set_t(self, value):
+        self.sim.t = value
+
+    t_max = tr.Property()
+
+    def _get_t_max(self):
+        return self.sim.t_max
+
+    def _set_t_max(self, value):
+        self.sim.t_max = value
+
+    interrupt = tr.Property()
+
+    def _get_interrupt(self):
+        return self.sim.interrupt
+
+    def _set_interrupt(self, value):
+        self.sim.interrupt = value
+
 
     bc_loaded = tr.Property(depends_on="state_changed")
 
@@ -121,9 +149,12 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     def setup_plot(self, pb):
 
-        self.run()
-        U_1 = self.hist.U_t[-1]
-        X1_Id = self.xdomain.mesh.X_Id + (U_1.reshape(-1, 3) * 1)
+        X_Id = self.xdomain.mesh.X_Id
+        if len(self.hist.U_t) == 0:
+            U_1 = np.zeros_like(X_Id)
+        else:
+            U_1 = self.hist.U_t[-1]
+        X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
         X1_Id = X1_Id.astype(np.float32)
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
 
@@ -134,13 +165,13 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
         k3d_fixed_nodes = k3d.points(X_Ma, color=0x22ffff, point_size=100)
         pb.plot_fig += k3d_fixed_nodes
-        pb.objects['k3d_fixed_nodes'] = k3d_fixed_nodes
+        pb.objects['fixed_nodes'] = k3d_fixed_nodes
 
         X_Ma = X1_Id[loaded_nodes]
 
         k3d_loaded_nodes = k3d.points(X_Ma, color=0xff22ff, point_size=100)
         pb.plot_fig += k3d_loaded_nodes
-        pb.objects['k3d_loaded_nodes'] = k3d_loaded_nodes
+        pb.objects['loaded_nodes'] = k3d_loaded_nodes
 
         wb_mesh_0 = k3d.mesh(self.xdomain.X_Id.astype(np.float32),
                              I_Ei,
@@ -159,24 +190,22 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         pb.objects['wb_mesh_1'] = wb_mesh_1
 
     def update_plot(self, pb):
-        X1_Id = self.xdomain.mesh.X_Id
-        s = self.sim
-        s.reset()
-        s.tloop.k_max = 10
-        s.tline.step = 1
-        s.tloop.verbose = False
-        s.run()
 
-        U_1 = self.hist.U_t[-1]
-        X1_Id = self.xdomain.mesh.X_Id + (U_1.reshape(-1, 3) * 1)
+        X_Id = self.xdomain.mesh.X_Id
+        if len(self.hist.U_t) == 0:
+            U_1 = np.zeros_like(X_Id)
+        else:
+            U_1 = self.hist.U_t[-1]
+        X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
         X1_Id = X1_Id.astype(np.float32)
+
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
 
         _, fixed_nodes, _ = self.bc_fixed
         _, loaded_nodes, _ = self.bc_loaded
 
-        pb.objects['k3d_fixed_nodes'].positions = X1_Id[fixed_nodes]
-        pb.objects['k3d_loaded_nodes'].positions = X1_Id[loaded_nodes]
+        pb.objects['fixed_nodes'].positions = X1_Id[fixed_nodes]
+        pb.objects['loaded_nodes'].positions = X1_Id[loaded_nodes]
 
         mesh = pb.objects['wb_mesh_1']
         mesh.vertices = X1_Id

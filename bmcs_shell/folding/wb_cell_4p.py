@@ -217,8 +217,6 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
             pb.plot_fig += self.wb_mesh_wireframe
 
     def update_plot(self, pb):
-        with bu.print_output:
-            print('in cell update_plot')
         self._assign_mesh_data(self.wb_mesh)
         if self.show_wireframe:
             self._assign_mesh_data(self.wb_mesh_wireframe)
