@@ -1,6 +1,6 @@
 import k3d
-from bmcs_shell.folding.wb_xdomain_fe import \
-    WBShellFETriangularMesh,FETriangularMesh, WBXDomainFE
+from bmcs_shell.folding.wbfe_xdomain import \
+    FEWBShellMesh,FETriangularMesh, XWBDomain
 import numpy as np
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
@@ -12,11 +12,13 @@ from ibvpy.tmodel.viz3d_tensor_field import \
     Vis3DTensorField, Viz3DTensorField
 import traits.api as tr
 from ibvpy.bcond import BCDof
-from bmcs_shell.folding.wb_xdomain_fe import WBXDomainFE
+from bmcs_shell.folding.wbfe_xdomain import XWBDomain
+import pygmsh
+
 itags_str = '+GEO,+MAT,+BC'
 
 import matplotlib.cm
-class WBModel(TStepBC,bu.InteractiveModel):
+class WBModel(TStepBC, bu.InteractiveModel):
 
     name = 'Deflection'
 
@@ -37,15 +39,15 @@ class WBModel(TStepBC,bu.InteractiveModel):
 
     tmodel = tr.Instance(MATS2DElastic,())
 
-    wb_mesh = tr.Instance(WBShellFETriangularMesh, ())
+    wb_mesh = tr.Instance(FEWBShellMesh,())
 
-    xdomain = tr.Property(tr.Instance(WBXDomainFE),
-                          depends_on="state_changed")
+    xdomain = tr.Property(tr.Instance(XWBDomain),
+                         depends_on="state_changed")
     '''Discretization object.
     '''
     @tr.cached_property
     def _get_xdomain(self):
-        return WBXDomainFE(
+        return XWBDomain(
             mesh=self.wb_mesh,
             integ_factor=self.h
         )
@@ -77,7 +79,7 @@ class WBModel(TStepBC,bu.InteractiveModel):
     @tr.cached_property
     def _get_bc_fixed(self):
         xdomain, _ = self.domains[0]
-        fixed_xyz_nodes = xdomain.bc_J_xy
+        fixed_xyz_nodes = xdomain.bc_J_xyz
         fixed_x_nodes = xdomain.bc_J_x
         fixed_nodes = np.unique(np.hstack([fixed_xyz_nodes, fixed_x_nodes]))
         fixed_xyz_dofs = (fixed_xyz_nodes[:, np.newaxis] * 3 + np.arange(3)[np.newaxis, :]).flatten()
@@ -187,3 +189,18 @@ class WBModel(TStepBC,bu.InteractiveModel):
         F_loaded = np.sum(F_to[:, loaded_dofs], axis=-1)
         U_loaded = np.average(U_to[:, loaded_dofs], axis=-1)
         return U_loaded, F_loaded
+
+    def get_mesh(self):
+
+        X_Id = self.wb_mesh.X_Id
+        I_Fi = self.wb_mesh.I_Fi
+        mesh_size = np.linalg.norm(X_Id[1]-X_Id[0])/10
+
+        with pygmsh.geo.Geometry() as geom:
+            for i, Fi in enumerate(I_Fi):
+                geom.add_polygon(X_Id[I_Fi][i], mesh_size=mesh_size)
+            mesh = geom.generate_mesh()
+
+        mesh.write("test_shell_mesh.vtk")
+
+        return mesh
