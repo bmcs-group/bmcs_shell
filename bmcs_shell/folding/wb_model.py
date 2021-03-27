@@ -13,18 +13,20 @@ from ibvpy.tmodel.viz3d_tensor_field import \
 import traits.api as tr
 from ibvpy.bcond import BCDof
 from bmcs_shell.folding.wbfe_xdomain import XWBDomain
+import pygmsh
+
 itags_str = '+GEO,+MAT,+BC'
 
 import matplotlib.cm
-class WBModel(TStepBC,bu.InteractiveModel):
+class WBModel(TStepBC, bu.InteractiveModel):
 
     name = 'Deflection'
 
     F = bu.Float(-1000, BC=True)
-    h = bu.Float(-1000, GEO=True)
+    h = bu.Float(10, GEO=True)
 
     ipw_view = bu.View(
-        bu.Item('F',editor=bu.FloatRangeEditor(low=-20000,high=20000,n_steps=100),
+        bu.Item('F',editor=bu.FloatRangeEditor(low=-20000, high=20000, n_steps=100),
                 continuous_update=False),
         bu.Item('h',
                 editor=bu.FloatRangeEditor(low=1, high=100, n_steps=100),
@@ -187,3 +189,18 @@ class WBModel(TStepBC,bu.InteractiveModel):
         F_loaded = np.sum(F_to[:, loaded_dofs], axis=-1)
         U_loaded = np.average(U_to[:, loaded_dofs], axis=-1)
         return U_loaded, F_loaded
+
+    def get_mesh(self):
+
+        X_Id = self.wb_mesh.X_Id
+        I_Fi = self.wb_mesh.I_Fi
+        mesh_size = np.linalg.norm(X_Id[1]-X_Id[0])/10
+
+        with pygmsh.geo.Geometry() as geom:
+            for i, Fi in enumerate(I_Fi):
+                geom.add_polygon(X_Id[I_Fi][i], mesh_size=mesh_size)
+            mesh = geom.generate_mesh()
+
+        mesh.write("test_shell_mesh.vtk")
+
+        return mesh

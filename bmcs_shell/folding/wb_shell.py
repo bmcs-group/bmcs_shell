@@ -7,6 +7,9 @@ from bmcs_shell.folding.wb_cell_4p import \
     WBElem4Param as WBElem, axis_angle_to_q, qv_mult
 import traits.api as tr
 import numpy as np
+import json
+import time
+
 
 class WBShell(bu.InteractiveModel):
     name = 'Waterbomb shell'
@@ -291,3 +294,25 @@ class WBShell(bu.InteractiveModel):
             wireframe.vertices = X_Ia
             wireframe.indices = I_Fi
 
+    def export_fold_file(self, path=None):
+        # See https://github.com/edemaine/fold/blob/master/doc/spec.md for fold file specification
+        # Viewer: https://edemaine.github.io/fold/examples/foldviewer.html
+
+        output_data = {
+            "file_spec": 1,
+            "file_creator": "BMCS software suite",
+            "file_author": "RWTH Aachen - Institute of Structural Concrete",
+            "file_title": "Preliminary Base",
+            "file_classes": ["singleModel"],
+            "frame_title": "Preliminary Base Crease Pattern",
+            "frame_classes": ["creasePattern"],
+            "vertices_coords": self.X_Ia.tolist(),
+            "faces_vertices": self.I_Fi.tolist(),
+            # To be completed
+        }
+
+        if path is None:
+            path = time.strftime("%Y%m%d-%H%M%S") + '-shell.fold'
+
+        with open(path, 'w') as outfile:
+            json.dump(output_data, outfile, sort_keys=True, indent=4)
