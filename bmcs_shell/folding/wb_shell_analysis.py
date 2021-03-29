@@ -39,7 +39,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     tmodel = bu.Instance(MATS2DElastic,())
 
-    tree = ['geo', 'tmodel']
+    tree = ['geo', 'tmodel', 'xdomain']
 
     xdomain = tr.Property(tr.Instance(WBXDomainFE),
                          depends_on="state_changed")
@@ -60,8 +60,6 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     @tr.cached_property
     def _get_domains(self):
         return [(self.xdomain, self.tmodel)]
-
-    tree = ['geo', 'tmodel']
 
     def reset(self):
         self.sim.reset()

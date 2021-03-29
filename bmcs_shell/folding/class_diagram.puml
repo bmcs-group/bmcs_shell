@@ -20,7 +20,7 @@ class WBTessellation {
 
 WBTessellation --> WBCell: cell_spec >
 
-class FETriangularMesh{
+class WBFETriangularMesh{
 }
 
 class WBShellGeometry{
@@ -28,7 +28,7 @@ class WBShellGeometry{
 
 WBShellGeometry --|> WBTessellation
 
-WBShellGeometry <-- FETriangularMesh : geo <
+WBShellGeometry <.. WBFETriangularMesh : geo <
 
 
 class TModel{
@@ -45,9 +45,9 @@ class WBXDomainFE{
 XDomainFE --|> XModel
 WBXDomainFE --|> XDomainFE
 
-WBXDomainFE --> FETriangularMesh : mesh >
+WBXDomainFE --> WBFETriangularMesh : mesh >
 
-WBShellAnalysis ..> WBShellGeometry : geo >
+WBShellAnalysis --> WBShellGeometry : geo >
 WBShellAnalysis --> TModel : tmodel >
 WBShellAnalysis --> WBXDomainFE : xmodel >
 

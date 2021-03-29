@@ -238,6 +238,11 @@ class WBTessellation(bu.InteractiveModel):
                       self.wb_cell.I_boundary[np.newaxis, np.newaxis, :, :])
         return I_CDij_map
 
+    I_Li = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_I_Li(self):
+        self.I_Fi
+
     def setup_plot(self, pb):
 
         X_Ia = self.X_Ia.astype(np.float32)

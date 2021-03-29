@@ -31,6 +31,8 @@ class WBXDomainFE(XDomainFE):
     mesh = tr.Instance(WBShellFETriangularMesh, ())
     fets = tr.DelegatesTo('mesh')
 
+    tree = ['mesh']
+
     change = tr.Event(GEO=True)
 
     plot_backend = 'k3d'
