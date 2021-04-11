@@ -97,6 +97,9 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     a = bu.Float(1000, GEO=True)
     b = bu.Float(1000, GEO=True)
     c = bu.Float(1000, GEO=True)
+    a_low = bu.Float(2000)
+    b_low = bu.Float(2000)
+    c_low = bu.Float(2000)
     a_high = bu.Float(2000)
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
@@ -107,10 +110,13 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
         bu.Item('x_ur', latex=r'x^\urcorner', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+            low=-2000, high=3000, n_steps=100, continuous_update=True)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
     )
 
     n_I = tr.Property

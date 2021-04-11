@@ -5,7 +5,6 @@ dependencies:
 - appmode
 - jupyter_contrib_nbextensions
 - traits
-- importlib-resources
 - matplotlib-base
 - numpy
 - scipy
