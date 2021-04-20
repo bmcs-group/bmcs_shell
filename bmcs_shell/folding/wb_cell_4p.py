@@ -201,9 +201,12 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
+    opacity = bu.Float(0.6, GEO=True)
+
     def setup_plot(self, pb):
         self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
                                 self.I_Fi.astype(np.uint32),
+                                opacity=self.opacity,
                                 color=0x999999,
                                 side='double')
         pb.plot_fig += self.wb_mesh

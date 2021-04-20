@@ -35,6 +35,7 @@ class WBTessellation(bu.InteractiveModel):
 
     show_wireframe = bu.Bool(True,GEO=True)
     show_nodes = bu.Bool(False,GEO=True)
+    show_node_labels = bu.Bool(False,GEO=True)
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -60,6 +61,7 @@ class WBTessellation(bu.InteractiveModel):
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
         bu.Item('show_wireframe'),
+        bu.Item('show_node_labels'),
         bu.Item('show_nodes')
     )
 
@@ -253,10 +255,6 @@ class WBTessellation(bu.InteractiveModel):
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
 
-        k3d_points = k3d.points(X_Ma)
-        pb.objects['k3d_points'] = k3d_points
-        pb.plot_fig += k3d_points
-
         k3d_mesh = k3d.mesh(X_Ia,
                                  I_Fi,
                                  color=0x999999,
@@ -266,6 +264,11 @@ class WBTessellation(bu.InteractiveModel):
         pb.plot_fig += k3d_mesh
 
         if self.show_nodes:
+            k3d_points = k3d.points(X_Ma)
+            pb.objects['k3d_points'] = k3d_points
+            pb.plot_fig += k3d_points
+
+        if self.show_node_labels:
             for I, X_a in enumerate(X_Ia):
                 k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False)
                 pb.plot_fig += k3d_text
@@ -290,7 +293,8 @@ class WBTessellation(bu.InteractiveModel):
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
 
-        pb.objects['k3d_points'].positions = X_Ma
+        if self.show_nodes:
+            pb.objects['k3d_points'].positions = X_Ma
         mesh = pb.objects['k3d_mesh']
         mesh.vertices = X_Ia
         mesh.indices = I_Fi

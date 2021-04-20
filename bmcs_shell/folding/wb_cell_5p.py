@@ -9,6 +9,21 @@ import traits.api as tr
 import numpy as np
 import math
 
+def get_x_sol(Eq_UOU, x_ul, subs_yz):
+    Eq_UOU_x = Eq_UOU.subs(subs_yz)
+    Eq_UOU_x_rearr = sp.Eq(-Eq_UOU_x.args[1].args[1],
+                           -Eq_UOU_x.args[0] + Eq_UOU_x.args[1].args[0] + Eq_UOU_x.args[1].args[2])
+    Eq_UOU_x_rhs = Eq_UOU_x_rearr.args[1] ** 2 - Eq_UOU_x_rearr.args[0] ** 2
+    Eq_UOU_x_rhs_collect = sp.collect(sp.expand(Eq_UOU_x_rhs), x_ul)
+
+    A_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 2)
+    B_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 1)
+    C_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 0)
+    A, B, C = sp.symbols('A, B, C')
+
+    x_ul_sol1, x_ul_sol2 = sp.solve(A * x_ul ** 2 + B * x_ul + C, x_ul)
+    return x_ul_sol1, x_ul_sol2, A_, B_, C_
+
 
 class WBElemSymb5ParamXL(bu.SymbExpr):
 
@@ -47,43 +62,58 @@ class WBElemSymb5ParamXL(bu.SymbExpr):
     yz_ur_sol1, yz_ur_sol2 = sp.solve({Eq_UOV_r, Eq_VUO_r}, [y_ur, z_ur])
     yz_ul_sol1, yz_ul_sol2 = sp.solve({Eq_UOV_l, Eq_VUO_l}, [y_ul, z_ul])
 
-    y_ur_sol, z_ur_sol = yz_ur_sol1
-    y_ul_sol, z_ul_sol = yz_ul_sol1
+    y_ur_sol1, z_ur_sol = yz_ur_sol1
+    y_ul_sol1, z_ul_sol = yz_ul_sol1
+    y_ur_sol2, _ = yz_ur_sol2
+    y_ul_sol2, _ = yz_ul_sol2
 
-    subs_yz = {y_ur: y_ur_sol, z_ur: z_ur_sol,
-               y_ul: y_ul_sol, z_ul: z_ul_sol}
+    subs_yz1 = {y_ur: y_ur_sol1, z_ur: z_ur_sol,
+               y_ul: y_ul_sol1, z_ul: z_ul_sol}
+    subs_yz2 = {y_ur: y_ur_sol2, z_ur: z_ur_sol,
+               y_ul: y_ul_sol2, z_ul: z_ul_sol}
 
-    Eq_UOU_x = Eq_UOU.subs(subs_yz)
-    Eq_UOU_x_rearr = sp.Eq(-Eq_UOU_x.args[1].args[1],
-                           -Eq_UOU_x.args[0] + Eq_UOU_x.args[1].args[0] + Eq_UOU_x.args[1].args[2])
-    Eq_UOU_x_rhs = Eq_UOU_x_rearr.args[1] ** 2 - Eq_UOU_x_rearr.args[0] ** 2
-    Eq_UOU_x_rhs_collect = sp.collect(sp.expand(Eq_UOU_x_rhs), x_ul)
-
-    A_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 2)
-    B_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 1)
-    C_ = Eq_UOU_x_rhs_collect.coeff(x_ul, 0)
     A, B, C = sp.symbols('A, B, C')
+    x_ul_sol11, x_ul_sol12, A1_, B1_, C1_ = get_x_sol(Eq_UOU, x_ul, subs_yz1)
+    x_ul_sol21, x_ul_sol22, A2_, B2_, C2_ = get_x_sol(Eq_UOU, x_ul, subs_yz2)
 
-    x_ul_sol1, x_ul_sol2 = sp.solve(A * x_ul ** 2 + B * x_ul + C, x_ul)
-
-    x_ul_ = x_ul_sol2
-    y_ur_ = y_ur_sol
-    y_ul_ = y_ul_sol
+    x_ul11_ = x_ul_sol11
+    x_ul12_ = x_ul_sol12
+    x_ul21_ = x_ul_sol21
+    x_ul22_ = x_ul_sol22
+    y_ur1_ = y_ur_sol1
+    y_ul1_ = y_ul_sol1
+    y_ur2_ = y_ur_sol2
+    y_ul2_ = y_ul_sol2
     z_ur_ = z_ur_sol
     z_ul_ = z_ul_sol
 
+    P_1 = sp.sin(gamma) * x_ur - a
+    P_2 = (x_ur - a * sp.sin(gamma))**2 - sp.cos(gamma)**2 * b**2
+    P_3 = sp.sin(gamma) *(a**2+b**2) * x_ur - a * (a**2-b**2)
+
     symb_model_params = ['gamma', 'x_ur', 'a', 'b', 'c', ]
     symb_expressions = [
-        ('x_ul_', ('A', 'B', 'C')),
-        ('y_ur_', ('x_ul',)),
-        ('y_ul_', ('x_ul',)),
+        ('x_ul11_', ('A', 'B', 'C')),
+        ('x_ul12_', ('A', 'B', 'C')),
+        ('x_ul21_', ('A', 'B', 'C')),
+        ('x_ul22_', ('A', 'B', 'C')),
+        ('y_ur1_', ('x_ul',)),
+        ('y_ul1_', ('x_ul',)),
+        ('y_ur2_', ('x_ul',)),
+        ('y_ul2_', ('x_ul',)),
         ('z_ur_', ('x_ul',)),
         ('z_ul_', ('x_ul',)),
-        ('A_', ()),
-        ('B_', ()),
-        ('C_', ()),
+        ('A1_', ()),
+        ('B1_', ()),
+        ('C1_', ()),
+        ('A2_', ()),
+        ('B2_', ()),
+        ('C2_', ()),
         ('V_r_1', ()),
         ('V_l_1', ()),
+        ('P_1',()),
+        ('P_2', ()),
+        ('P_3', ()),
     ]
 
 class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
@@ -103,6 +133,8 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     a_high = bu.Float(2000)
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
+    y_sol1 = bu.Bool(False,GEO=True)
+    x_sol1 = bu.Bool(False,GEO=True)
 
     show_wireframe = tr.Bool
 
@@ -117,6 +149,8 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
             low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+        bu.Item('y_sol1'),
+        bu.Item('x_sol1')
     )
 
     n_I = tr.Property
@@ -131,23 +165,37 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         gamma = self.gamma
         alpha = np.pi/2 - gamma
 
-        x_ur = self.x_ur
-        A = self.symb.get_A_()
-        B = self.symb.get_B_()
-        C = self.symb.get_C_()
+        P_1 = self.symb.get_P_1()
+        P_2 = self.symb.get_P_2()
+        P_3 = self.symb.get_P_3()
 
-        x_ul = self.symb.get_x_ul_(A, B, C)
-        y_ur = self.symb.get_y_ur_(x_ul)
-        y_ul = self.symb.get_y_ul_(x_ul)
+#        print('P', P_1, P_2, P_3, P_1*P_2*P_3)
+
+        x_ur = self.x_ur
+
+        if self.y_sol1:
+            A = self.symb.get_A1_()
+            B = self.symb.get_B1_()
+            C = self.symb.get_C1_()
+            if self.x_sol1:
+                x_ul = self.symb.get_x_ul11_(A, B, C)
+            else:
+                x_ul = self.symb.get_x_ul12_(A, B, C)
+            y_ul = self.symb.get_y_ul1_(x_ul)
+            y_ur = self.symb.get_y_ur1_(x_ul)
+        else:
+            A = self.symb.get_A2_()
+            B = self.symb.get_B2_()
+            C = self.symb.get_C2_()
+            if self.x_sol1:
+                x_ul = self.symb.get_x_ul21_(A, B, C)
+            else:
+                x_ul = self.symb.get_x_ul22_(A, B, C)
+            y_ul = self.symb.get_y_ul2_(x_ul)
+            y_ur = self.symb.get_y_ur2_(x_ul)
+
         z_ur = self.symb.get_z_ur_(x_ul)
         z_ul = self.symb.get_z_ul_(x_ul)
-
-        x_ll = x_ul
-        x_lr = x_ur
-        y_ll = - y_ul
-        y_lr = - y_ur
-        z_ll = z_ul
-        z_lr = z_ur
 
         x_ll = -x_ur
         x_lr = -x_ul
@@ -224,9 +272,12 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
+    opacity = bu.Float(0.6, GEO=True)
+
     def setup_plot(self, pb):
         wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
                                  self.I_Fi.astype(np.uint32),
+                                opacity=self.opacity,
                                  color=0x999999,
                                  side='double')
         pb.plot_fig += wb_mesh
