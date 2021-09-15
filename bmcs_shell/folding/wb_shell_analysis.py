@@ -17,6 +17,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     F = bu.Float(-1000, BC=True)
     h = bu.Float(-1000, GEO=True)
+    show_wireframe = bu.Bool(True,GEO=True)
 
     ipw_view = bu.View(
         bu.Item('F',editor=bu.FloatRangeEditor(low=-20000,high=20000,n_steps=100),
@@ -24,6 +25,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         bu.Item('h',
                 editor=bu.FloatRangeEditor(low=1, high=100, n_steps=100),
                 continuous_update=False),
+        bu.Item('show_wireframe'),
         time_editor=bu.ProgressEditor(run_method='run',
                                       reset_method='reset',
                                       interrupt_var='interrupt',
@@ -146,7 +148,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         return U_max
 
     def setup_plot(self, pb):
-
+        print('analysis: setup_plot')
         X_Id = self.xdomain.mesh.X_Id
         if len(self.hist.U_t) == 0:
             U_1 = np.zeros_like(X_Id)
@@ -187,11 +189,22 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         pb.plot_fig += wb_mesh_1
         pb.objects['wb_mesh_1'] = wb_mesh_1
 
+        if self.show_wireframe:
+            k3d_mesh_wireframe = k3d.mesh(X1_Id,
+                                          I_Ei,
+                                          color=0x000000,
+                                          wireframe=True)
+            pb.plot_fig += k3d_mesh_wireframe
+            pb.objects['mesh_wireframe'] = k3d_mesh_wireframe
+
+
     def update_plot(self, pb):
 
         X_Id = self.xdomain.mesh.X_Id
+        print('analysis: update_plot', len(X_Id))
         if len(self.hist.U_t) == 0:
             U_1 = np.zeros_like(X_Id)
+            print('analysis: U_I',)
         else:
             U_1 = self.hist.U_t[-1]
         X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
@@ -210,6 +223,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         mesh.indices = I_Ei
         mesh.attributes = U_1.reshape(-1, 3)[:, 2]
         mesh.color_range=[np.min(U_1), np.max(U_1)]
+        if self.show_wireframe:
+            wireframe = pb.objects['mesh_wireframe']
+            wireframe.vertices = X1_Id
+            wireframe.indices = I_Ei
+
 
     def get_Pw(self):
         import numpy as np

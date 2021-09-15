@@ -28,7 +28,7 @@ class WBXDomainFE(XDomainFE):
     Finite element discretization with dofs and mappings derived from the FE definition
     '''
 
-    mesh = tr.Instance(WBShellFETriangularMesh, ())
+    mesh = tr.Instance(FETriangularMesh, ())
     fets = tr.DelegatesTo('mesh')
 
     tree = ['mesh']
@@ -219,15 +219,15 @@ class WBXDomainFE(XDomainFE):
         B_Eso = np.einsum('soE,E->Eso', B_soE, 1 / det_J_E)
         return B_Eso, det_J_E
 
-    def map_U_to_field(self, U):
-        U_Eia = U[self.o_Eia]
+    def map_U_to_field(self, U_o):
+        U_Eia = U_o[self.o_Eia]
         # coordinate transform to local
-        U_Eia = self.xU2u(U_Eia)
-        U_Eo = U_Eia.reshape(-1,6)
+        u_Eia = self.xU2u(U_Eia)
+        u_Eo = u_Eia.reshape(-1,6)
         B_Eso, _ = self.B_Eso
         eps_Eso = np.einsum(
             'Eso,Eo->Es',
-            B_Eso, U_Eo
+            B_Eso, u_Eo
         )
         return eps_Eso
 

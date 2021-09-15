@@ -6,6 +6,29 @@ from .wb_shell_geometry import WBShellGeometry
 import pygmsh
 import numpy as np
 import k3d
+import gmsh
+
+class Facet:
+    dim = 2
+
+    def __init__(self, host, xpoints):
+        # Create lines
+        self.curves = [
+            host.add_line(xpoints[k], xpoints[k + 1])
+            for k in range(len(xpoints) - 1)
+        ] + [host.add_line(xpoints[-1], xpoints[0])]
+
+        self.lines = self.curves
+
+        self.curve_loop = host.add_curve_loop(self.curves)
+        # self.surface = host.add_plane_surface(ll, holes) if make_surface else None
+        self.surface = host.add_plane_surface(self.curve_loop)
+        self.dim_tag = self.surface.dim_tag
+        self.dim_tags = self.surface.dim_tags
+        self._id = self.surface._id
+
+    def __repr__(self):
+        return "<pygmsh Polygon object>"
 
 class WBShellFETriangularMesh(FETriangularMesh):
     """Directly mapped mesh with one-to-one mapping
@@ -41,10 +64,16 @@ class WBShellFETriangularMesh(FETriangularMesh):
         I_Fi = self.geo.I_Fi
         mesh_size = np.linalg.norm(X_Id[1]-X_Id[0])/self.subdivision
 
-        X_Fid = X_Id[I_Fi]
         with pygmsh.geo.Geometry() as geom:
-            for X_id in X_Fid:
-                geom.add_polygon(X_id, mesh_size=mesh_size)
+            xpoints = np.array([
+                geom.add_point(X_d, mesh_size=mesh_size) for X_d in X_Id
+            ])
+            for I_i in I_Fi:
+                # Create points.
+
+                Facet(geom, xpoints[I_i])
+            #                geom.add_polygon(X_id, mesh_size=mesh_size)
+            gmsh.model.geo.remove_all_duplicates()
             mesh = geom.generate_mesh()
         return mesh
 
