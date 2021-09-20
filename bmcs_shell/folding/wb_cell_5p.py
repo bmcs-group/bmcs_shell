@@ -136,7 +136,7 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     y_sol1 = bu.Bool(False,GEO=True)
     x_sol1 = bu.Bool(False,GEO=True)
 
-    show_wireframe = tr.Bool
+    show_wireframe = tr.Bool(True)
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(

@@ -3,5 +3,11 @@ from bmcs_shell.folding.wb_cell_4p import WBElem4Param, WBElemSymb4Param
 from bmcs_shell.folding.wb_shell_geometry import WBShellGeometry
 from bmcs_shell.folding.wb_shell_analysis import WBShellAnalysis
 from bmcs_shell.folding.wb_fe_triangular_mesh import WBShellFETriangularMesh
+from bmcs_shell.folding.fe_triangular_mesh import FETriangularMesh
+from bmcs_shell.folding.tri_xdomain_fe import TriXDomainFE
+from bmcs_shell.folding.xdomain_fe_grid import XDomainFE
+
+from bmcs_shell.folding.wb_fets2d3u1m_fe import FETS2D3U1M
+
 from bmcs_shell.folding.wb_tessellation import WBTessellation
 from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic

@@ -5,7 +5,7 @@ from ibvpy.sim.tstep_bc import TStepBC
 import bmcs_utils.api as bu
 import traits.api as tr
 from ibvpy.bcond import BCDof
-from .wb_xdomain_fe import WBXDomainFE
+from .tri_xdomain_fe import TriXDomainFE
 from .wb_shell_geometry import WBShellGeometry
 from .wb_fe_triangular_mesh import WBShellFETriangularMesh
 
@@ -13,7 +13,7 @@ itags_str = '+GEO,+MAT,+BC'
 
 class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
-    name = 'WBShellPhysicalModel'
+    name = 'WBShellAnalysis'
 
     F = bu.Float(-1000, BC=True)
     h = bu.Float(-1000, GEO=True)
@@ -30,7 +30,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
                                       reset_method='reset',
                                       interrupt_var='interrupt',
                                       time_var='t',
-                                      time_max='t_max'                                      )
+                                      time_max='t_max')
     )
 
     n_phi_plus = tr.Property()
@@ -39,12 +39,12 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     geo = bu.Instance(WBShellGeometry,())
 
-    tmodel = bu.Instance(MATS2DElastic,())
+    tmodel = bu.Instance(MATS2DElastic, ())
 
     tree = ['geo', 'tmodel', 'xdomain']
 
-    xdomain = tr.Property(tr.Instance(WBXDomainFE),
-                         depends_on="state_changed")
+    xdomain = tr.Property(tr.Instance(TriXDomainFE),
+                          depends_on="state_changed")
     '''Discretization object.
     '''
     @tr.cached_property
@@ -52,7 +52,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         # prepare the mesh generator
         mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
         # construct the domain with the kinematic strain mapper and stress integrator
-        return WBXDomainFE(
+        return TriXDomainFE(
             mesh=mesh,
             integ_factor=self.h,
         )

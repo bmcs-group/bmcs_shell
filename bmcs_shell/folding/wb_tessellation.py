@@ -33,9 +33,9 @@ class WBTessellation(bu.InteractiveModel):
     c_high = bu.Float(2000)
 
 
-    show_wireframe = bu.Bool(True,GEO=True)
-    show_nodes = bu.Bool(False,GEO=True)
-    show_node_labels = bu.Bool(False,GEO=True)
+    show_wireframe = bu.Bool(True, GEO=True)
+    show_nodes = bu.Bool(False, GEO=True)
+    show_node_labels = bu.Bool(False, GEO=True)
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):

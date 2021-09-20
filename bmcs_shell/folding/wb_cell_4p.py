@@ -97,7 +97,7 @@ class WBElemSymb4Param(bu.SymbExpr):
     ]
 
 
-class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
+class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
     name = 'Waterbomb cell 4p'
     symb_class = WBElemSymb4Param
 
@@ -111,7 +111,7 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
 
-    show_wireframe = tr.Bool
+    show_wireframe = tr.Bool(True)
 
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
@@ -178,12 +178,12 @@ class WBElem4Param(bu.InteractiveModel,bu.InjectSymbExpr):
     '''Triangle mapping '''
     @tr.cached_property
     def _get_I_Fi(self):
-        return np.array([[0,1,2],
-                         [0,3,4],
-                         [0,1,5],
-                         [0,2,6],
-                         [0,3,5],
-                         [0,4,6],
+        return np.array([[0, 1, 2],
+                         [0, 3, 4],
+                         [0, 1, 5],
+                         [0, 2, 6],
+                         [0, 3, 5],
+                         [0, 4, 6],
                          ])
 
     delta_x = tr.Property(depends_on='+GEO')
