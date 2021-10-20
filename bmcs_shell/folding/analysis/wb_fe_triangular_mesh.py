@@ -1,7 +1,7 @@
 import traits.api as tr
 import bmcs_utils.api as bu
 from bmcs_shell.folding.analysis.fem.fe_triangular_mesh import FETriangularMesh
-from .wb_shell_geometry import WBShellGeometry
+from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
 import pygmsh
 import numpy as np
 import k3d
