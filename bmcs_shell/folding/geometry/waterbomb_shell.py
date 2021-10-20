@@ -3,7 +3,7 @@
 """
 import bmcs_utils.api as bu
 import k3d
-from bmcs_shell.folding.wb_cell_4p import \
+from bmcs_shell.folding.geometry.wb_cell_4p import \
     WBElem, axis_angle_to_q, qv_mult
 import traits.api as tr
 import numpy as np

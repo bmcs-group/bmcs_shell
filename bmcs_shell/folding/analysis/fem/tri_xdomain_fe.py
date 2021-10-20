@@ -2,7 +2,7 @@
 import traits.api as tr
 from ibvpy.mathkit.tensor import DELTA23_ab
 import numpy as np
-from .vector_acos import \
+from bmcs_shell.folding.utils.vector_acos import \
     get_theta, get_theta_du
 import k3d
 from ibvpy.mathkit.linalg.sys_mtx_assembly import SysMtxArray
@@ -19,9 +19,8 @@ EPS = np.zeros((3, 3, 3), dtype='f')
 EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
 EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 
-from .fe_triangular_mesh import FETriangularMesh
-from .wb_fe_triangular_mesh import WBShellFETriangularMesh
-from .xdomain_fe_grid import XDomainFE
+from bmcs_shell.folding.analysis.fem.fe_triangular_mesh import FETriangularMesh
+from bmcs_shell.folding.analysis.fem.xdomain_fe_grid import XDomainFE
 
 class TriXDomainFE(XDomainFE):
     name = 'TriXDomainFE'

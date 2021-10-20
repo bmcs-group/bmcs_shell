@@ -1,35 +1,11 @@
 import traits.api as tr
 import bmcs_utils.api as bu
-from .fe_triangular_mesh import FETriangularMesh
+from bmcs_shell.folding.analysis.fem.fe_triangular_mesh import FETriangularMesh
 from .wb_shell_geometry import WBShellGeometry
 import pygmsh
 import numpy as np
 import k3d
 import gmsh
-
-
-class Facet:
-    dim = 2
-
-    def __init__(self, host, xpoints):
-        # Create lines
-        self.curves = [
-                          host.add_line(xpoints[k], xpoints[k + 1])
-                          for k in range(len(xpoints) - 1)
-                      ] + [host.add_line(xpoints[-1], xpoints[0])]
-
-        self.lines = self.curves
-
-        self.curve_loop = host.add_curve_loop(self.curves)
-        # self.surface = host.add_plane_surface(ll, holes) if make_surface else None
-        self.surface = host.add_plane_surface(self.curve_loop)
-        self.dim_tag = self.surface.dim_tag
-        self.dim_tags = self.surface.dim_tags
-        self._id = self.surface._id
-
-    def __repr__(self):
-        return "<pygmsh Polygon object>"
-
 
 class WBShellFETriangularMesh(FETriangularMesh):
     """Directly mapped mesh with one-to-one mapping
@@ -129,3 +105,26 @@ class WBShellFETriangularMesh(FETriangularMesh):
         X_Id = self.X_Id.astype(np.float32)
         pb.objects['fixed_nodes'].positions = X_Id[fixed_nodes]
         pb.objects['loaded_nodes'].positions = X_Id[loaded_nodes]
+
+
+class Facet:
+    dim = 2
+
+    def __init__(self, host, xpoints):
+        # Create lines
+        self.curves = [
+                          host.add_line(xpoints[k], xpoints[k + 1])
+                          for k in range(len(xpoints) - 1)
+                      ] + [host.add_line(xpoints[-1], xpoints[0])]
+
+        self.lines = self.curves
+
+        self.curve_loop = host.add_curve_loop(self.curves)
+        # self.surface = host.add_plane_surface(ll, holes) if make_surface else None
+        self.surface = host.add_plane_surface(self.curve_loop)
+        self.dim_tag = self.surface.dim_tag
+        self.dim_tags = self.surface.dim_tags
+        self._id = self.surface._id
+
+    def __repr__(self):
+        return "<pygmsh Polygon object>"

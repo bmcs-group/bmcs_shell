@@ -1,13 +1,13 @@
 import k3d
 import numpy as np
-from bmcs_shell.folding.vmats2D_elastic import MATS2DElastic
+from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
 import bmcs_utils.api as bu
 import traits.api as tr
 from ibvpy.bcond import BCDof
-from .tri_xdomain_fe import TriXDomainFE
+from bmcs_shell.folding.analysis.fem.tri_xdomain_fe import TriXDomainFE
 from .wb_shell_geometry import WBShellGeometry
-from .wb_fe_triangular_mesh import WBShellFETriangularMesh
+from bmcs_shell.folding.analysis.wb_fe_triangular_mesh import WBShellFETriangularMesh
 
 itags_str = '+GEO,+MAT,+BC'
 
@@ -46,8 +46,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     xdomain = tr.Property(tr.Instance(TriXDomainFE),
                           depends_on="state_changed")
-    '''Discretization object.
-    '''
+    '''Discretization object.'''
 
     @tr.cached_property
     def _get_xdomain(self):

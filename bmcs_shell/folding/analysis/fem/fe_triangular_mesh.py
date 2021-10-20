@@ -1,5 +1,5 @@
 import traits.api as tr
-from .wb_fets2d3u1m_fe import FETS2D3U1M
+from bmcs_shell.folding.analysis.wb_fets2d3u1m_fe import FETS2D3U1M
 import bmcs_utils.api as bu
 import numpy as np
 from ibvpy.mesh.i_fe_uniform_domain import IFEUniformDomain

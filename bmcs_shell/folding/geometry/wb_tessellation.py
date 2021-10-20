@@ -3,15 +3,13 @@
 """
 import bmcs_utils.api as bu
 import k3d
-from bmcs_shell.folding.wb_cell_4p import \
+from bmcs_shell.folding.geometry.wb_cell_4p import \
     WBElem4Param as WBElem, axis_angle_to_q, qv_mult
 import traits.api as tr
 import numpy as np
 import json
 import time
 
-
-import pygmsh
 
 class WBTessellation(bu.InteractiveModel):
     name = 'Waterbomb shell'
@@ -276,7 +274,6 @@ class WBTessellation(bu.InteractiveModel):
             self._add_wireframe_to_fig(pb, X_Ia, I_Fi)
 
     def update_plot(self, pb):
-        print('plot updated!')
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
