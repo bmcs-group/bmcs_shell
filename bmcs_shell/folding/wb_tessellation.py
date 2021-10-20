@@ -36,6 +36,9 @@ class WBTessellation(bu.InteractiveModel):
     show_wireframe = bu.Bool(True, GEO=True)
     show_nodes = bu.Bool(False, GEO=True)
     show_node_labels = bu.Bool(False, GEO=True)
+    WIREFRAME = 'k3d_mesh_wireframe'
+    NODES = 'k3d_nodes'
+    NODES_LABELS = 'k3d_nodes_labels'
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -264,27 +267,16 @@ class WBTessellation(bu.InteractiveModel):
         pb.plot_fig += k3d_mesh
 
         if self.show_nodes:
-            k3d_points = k3d.points(X_Ma)
-            pb.objects['k3d_points'] = k3d_points
-            pb.plot_fig += k3d_points
+            self._add_nodes_to_fig(pb, X_Ma)
 
         if self.show_node_labels:
-            for I, X_a in enumerate(X_Ia):
-                k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False)
-                pb.plot_fig += k3d_text
-                # TODO - append to list
-                pb.objects['k3d_text'] = k3d_text
+            self._add_nodes_labels_to_fig(pb, X_Ia)
 
         if self.show_wireframe:
-            k3d_mesh_wireframe = k3d.mesh(X_Ia,
-                                          I_Fi,
-                                          color=0x000000,
-                                          wireframe=True)
-            pb.plot_fig += k3d_mesh_wireframe
-            pb.objects['k3d_mesh_wireframe'] = k3d_mesh_wireframe
+            self._add_wireframe_to_fig(pb, X_Ia, I_Fi)
 
     def update_plot(self, pb):
-
+        print('plot updated!')
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
@@ -293,16 +285,68 @@ class WBTessellation(bu.InteractiveModel):
         J_M = idx_remap[I_M]
         X_Ma = X_Ia[J_M.flatten()]
 
-        if self.show_nodes:
-            pb.objects['k3d_points'].positions = X_Ma
         mesh = pb.objects['k3d_mesh']
         mesh.vertices = X_Ia
         mesh.indices = I_Fi
 
+        if self.show_nodes:
+            if self.NODES in pb.objects:
+                pb.objects[self.NODES].positions = X_Ma
+            else:
+                self._add_nodes_to_fig(pb, X_Ma)
+        else:
+            if self.NODES in pb.objects:
+                pb.clear_object(self.NODES)
+
         if self.show_wireframe:
-            wireframe = pb.objects['k3d_mesh_wireframe']
-            wireframe.vertices = X_Ia
-            wireframe.indices = I_Fi
+            if self.WIREFRAME in pb.objects:
+                wireframe = pb.objects[self.WIREFRAME]
+                wireframe.vertices = X_Ia
+                wireframe.indices = I_Fi
+            else:
+                self._add_wireframe_to_fig(pb, X_Ia, I_Fi)
+        else:
+            if self.WIREFRAME in pb.objects:
+                pb.clear_object(self.WIREFRAME)
+
+        if self.show_node_labels:
+            if self.NODES_LABELS in pb.objects:
+                pb.clear_object(self.NODES_LABELS)
+            self._add_nodes_labels_to_fig(pb, X_Ia)
+        else:
+            if self.NODES_LABELS in pb.objects:
+                pb.clear_object(self.NODES_LABELS)
+
+    def _add_nodes_labels_to_fig(self, pb, X_Ia):
+        text_list = []
+        for I, X_a in enumerate(X_Ia):
+            k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False, size=0.8)
+            pb.plot_fig += k3d_text
+            text_list.append(k3d_text)
+        pb.objects[self.NODES_LABELS] = text_list
+
+    def _add_wireframe_to_fig(self, pb, X_Ia, I_Fi):
+        k3d_mesh_wireframe = k3d.mesh(X_Ia,
+                                      I_Fi,
+                                      color=0x000000,
+                                      wireframe=True)
+        pb.plot_fig += k3d_mesh_wireframe
+        pb.objects[self.WIREFRAME] = k3d_mesh_wireframe
+
+    def _add_nodes_to_fig(self, pb, X_Ma):
+        k3d_points = k3d.points(X_Ma, point_size=100)
+        pb.objects[self.NODES] = k3d_points
+        pb.plot_fig += k3d_points
+
+    def _show_or_hide_fig_object(self, pb, show_obj, obj_name, obj_add_fun, obj_update_fun):
+        if show_obj:
+            if obj_name in pb.objects:
+                obj_update_fun()
+            else:
+                obj_add_fun()
+        else:
+            if obj_name in pb.objects:
+                pb.clear_object(obj_name)
 
     def export_fold_file(self, path=None):
         # See https://github.com/edemaine/fold/blob/master/doc/spec.md for fold file specification
