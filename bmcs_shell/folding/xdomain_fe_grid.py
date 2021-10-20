@@ -9,6 +9,7 @@ from traits.api import \
     Tuple, Int, Type, Array, Float, Instance, Bool, DelegatesTo
 from ibvpy.view.ui.bmcs_tree_node import BMCSTreeNode
 from ibvpy.mesh.i_fe_uniform_domain import IFEUniformDomain
+from ibvpy.mathkit.tensor import DELTA23_ab
 
 import numpy as np
 
@@ -77,6 +78,7 @@ class XDomainFE(BMCSTreeNode):
     fets = Instance(IFETSEval, input=True, FE=True)
     '''Finite element type
     '''
+    # fets = DelegatesTo('mesh')
 
     dim_u = Int(2)
 
@@ -107,6 +109,12 @@ class XDomainFE(BMCSTreeNode):
         I_Ei = self.I_Ei
         x_Eia = x_Ia[I_Ei, :]
         return x_Eia
+
+        # x_Ia = self.X_Id
+        # I_Ei = self.I_Ei
+        # x_Eia = x_Ia[I_Ei, :]
+        # x_Eia = x_Eia[:, :, :-1]
+        # return x_Eia
 
     x_Ema = Property(depends_on='MESH,GEO,CS,FE')
 
@@ -195,6 +203,7 @@ class XDomainFE(BMCSTreeNode):
             self.Diff1_abcd, self.fets.dN_imr, inv_J_Emar
         )
 
+
     B_Eimabc = Property(depends_on='MESH,GEO,CS,FE')
     '''Kinematic mapping between displacements and strains in every
     integration point.
@@ -236,6 +245,16 @@ class XDomainFE(BMCSTreeNode):
             self.B_Eimabc, U_Eia
         )
         return eps_Emab
+
+    def xU2u(self, U_Eia):
+        u1_Eia = np.einsum('Eab,Eib->Eia', self.T_Fab, U_Eia)
+        u2_Eie =  np.einsum('ea,Eia->Eie', DELTA23_ab, u1_Eia)
+        return u2_Eie
+
+    T_Fab = Property(depends_on='+GEO')
+    @cached_property
+    def _get_T_Fab(self):
+        return self.F_L_bases[:, 0, :]
 
     def map_field_to_F(self, sig_Emab):
         f_Eic = self.integ_factor * np.einsum(

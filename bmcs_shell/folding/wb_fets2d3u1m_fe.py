@@ -20,11 +20,13 @@ class FETS2D3U1M(FETSEval):
     # =========================================================================
     # Surface integrals using numerical integration
     # =========================================================================
+    # i is point indices, p is point coords in natural coords (zeta_1, zeta_2, zeta_3)
     eta_ip = tr.Array('float_')
     r'''Integration points within a triangle.
     '''
 
     def _eta_ip_default(self):
+        # here, just one integration point in the middle of the triangle (zeta_1 = 1/3, zeta_2 = 1/3, zeta_3 = 1/3)
         return np.array([[1. / 3., 1. / 3., 1. / 3.]], dtype='f')
 
     w_m = tr.Array('float_')
@@ -57,8 +59,8 @@ class FETS2D3U1M(FETSEval):
     '''
     @tr.cached_property
     def _get_dN_imr(self):
-        dN_mri = np.array([[[1, 0, -1],
-                          [0, 1, -1]],
+        dN_mri = np.array([[[1, 0, -1],         # dN1/d_zeta1, dN2/d_zeta1, dN3/d_zeta1
+                          [0, 1, -1]],          # dN1/d_zeta2, dN2/d_zeta2, dN3/d_zeta2
                           ], dtype=np.float_)
         return np.einsum('mri->imr', dN_mri)
 

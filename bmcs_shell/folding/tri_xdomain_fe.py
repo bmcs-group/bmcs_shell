@@ -24,6 +24,7 @@ from .wb_fe_triangular_mesh import WBShellFETriangularMesh
 from .xdomain_fe_grid import XDomainFE
 
 class TriXDomainFE(XDomainFE):
+    name = 'TriXDomainFE'
     '''
     Finite element discretization with dofs and mappings derived from the FE definition
     '''

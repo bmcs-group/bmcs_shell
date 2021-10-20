@@ -1,4 +1,3 @@
-
 import traits.api as tr
 import bmcs_utils.api as bu
 from .fe_triangular_mesh import FETriangularMesh
@@ -8,15 +7,16 @@ import numpy as np
 import k3d
 import gmsh
 
+
 class Facet:
     dim = 2
 
     def __init__(self, host, xpoints):
         # Create lines
         self.curves = [
-            host.add_line(xpoints[k], xpoints[k + 1])
-            for k in range(len(xpoints) - 1)
-        ] + [host.add_line(xpoints[-1], xpoints[0])]
+                          host.add_line(xpoints[k], xpoints[k + 1])
+                          for k in range(len(xpoints) - 1)
+                      ] + [host.add_line(xpoints[-1], xpoints[0])]
 
         self.lines = self.curves
 
@@ -30,10 +30,11 @@ class Facet:
     def __repr__(self):
         return "<pygmsh Polygon object>"
 
+
 class WBShellFETriangularMesh(FETriangularMesh):
     """Directly mapped mesh with one-to-one mapping
     """
-    name = 'FE-Mesh'
+    name = 'WBShellFETriangularMesh'
 
     plot_backend = 'k3d'
 
@@ -47,7 +48,8 @@ class WBShellFETriangularMesh(FETriangularMesh):
 
     subdivision = bu.Float(10, DSC=True)
 
-    show_wireframe = bu.Bool(True,GEO=True)
+    # Will be used in the parent class. Should be here to catch GEO dependency
+    show_wireframe = bu.Bool(True, GEO=True)
 
     ipw_view = bu.View(
         bu.Item('subdivision'),
@@ -57,12 +59,13 @@ class WBShellFETriangularMesh(FETriangularMesh):
     )
 
     mesh = tr.Property(depends_on='state_changed')
+
     @tr.cached_property
     def _get_mesh(self):
 
         X_Id = self.geo.X_Ia
         I_Fi = self.geo.I_Fi
-        mesh_size = np.linalg.norm(X_Id[1]-X_Id[0])/self.subdivision
+        mesh_size = np.linalg.norm(X_Id[1] - X_Id[0]) / self.subdivision
 
         with pygmsh.geo.Geometry() as geom:
             xpoints = np.array([
@@ -78,19 +81,21 @@ class WBShellFETriangularMesh(FETriangularMesh):
         return mesh
 
     X_Id = tr.Property
+
     def _get_X_Id(self):
         if self.direct_mesh:
             return self.geo.X_Ia
         return np.array(self.mesh.points, dtype=np.float_)
 
     I_Fi = tr.Property
+
     def _get_I_Fi(self):
         if self.direct_mesh:
             return self.geo.I_Fi
         return self.mesh.cells[1][1]
 
-    bc_fixed_nodes = tr.Array(np.int_, value = [])
-    bc_loaded_nodes = tr.Array(np.int_, value = [])
+    bc_fixed_nodes = tr.Array(np.int_, value=[])
+    bc_loaded_nodes = tr.Array(np.int_, value=[])
 
     export_vtk = bu.Button
 
@@ -99,9 +104,9 @@ class WBShellFETriangularMesh(FETriangularMesh):
         self.mesh.write("test_shell_mesh.vtk")
 
     def setup_plot(self, pb):
+        super(WBShellFETriangularMesh, self).setup_plot(pb)
 
         X_Id = self.X_Id.astype(np.float32)
-        I_Fi = self.I_Fi.astype(np.uint32)
 
         fixed_nodes = self.bc_fixed_nodes
         loaded_nodes = self.bc_loaded_nodes
@@ -116,32 +121,11 @@ class WBShellFETriangularMesh(FETriangularMesh):
         pb.plot_fig += k3d_loaded_nodes
         pb.objects['loaded_nodes'] = k3d_loaded_nodes
 
-        wb_fe_mesh = k3d.mesh(X_Id, I_Fi,
-                              color=0x999999, opacity=0.5,
-                              side='double')
-        pb.plot_fig += wb_fe_mesh
-        pb.objects['wb_mesh'] = wb_fe_mesh
-
-        if self.show_wireframe:
-            k3d_mesh_wireframe = k3d.mesh(X_Id,
-                                          I_Fi,
-                                          color=0x000000,
-                                          wireframe=True)
-            pb.plot_fig += k3d_mesh_wireframe
-            pb.objects['mesh_wireframe'] = k3d_mesh_wireframe
-
-
     def update_plot(self, pb):
+        super(WBShellFETriangularMesh, self).update_plot(pb)
+
         fixed_nodes = self.bc_fixed_nodes
         loaded_nodes = self.bc_loaded_nodes
         X_Id = self.X_Id.astype(np.float32)
-        I_Fi = self.I_Fi.astype(np.uint32)
         pb.objects['fixed_nodes'].positions = X_Id[fixed_nodes]
         pb.objects['loaded_nodes'].positions = X_Id[loaded_nodes]
-        mesh = pb.objects['wb_mesh']
-        mesh.vertices = X_Id
-        mesh.indices = I_Fi
-        if self.show_wireframe:
-            wireframe = pb.objects['mesh_wireframe']
-            wireframe.vertices = X_Id
-            wireframe.indices = I_Fi

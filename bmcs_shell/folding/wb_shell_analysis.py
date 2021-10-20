@@ -11,16 +11,16 @@ from .wb_fe_triangular_mesh import WBShellFETriangularMesh
 
 itags_str = '+GEO,+MAT,+BC'
 
-class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
+class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     name = 'WBShellAnalysis'
 
     F = bu.Float(-1000, BC=True)
     h = bu.Float(-1000, GEO=True)
-    show_wireframe = bu.Bool(True,GEO=True)
+    show_wireframe = bu.Bool(True, GEO=True)
 
     ipw_view = bu.View(
-        bu.Item('F',editor=bu.FloatRangeEditor(low=-20000,high=20000,n_steps=100),
+        bu.Item('F', editor=bu.FloatRangeEditor(low=-20000, high=20000, n_steps=100),
                 continuous_update=False),
         bu.Item('h',
                 editor=bu.FloatRangeEditor(low=1, high=100, n_steps=100),
@@ -34,10 +34,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     )
 
     n_phi_plus = tr.Property()
+
     def _get_n_phi_plus(self):
         return self.xdomain.mesh.n_phi_plus
 
-    geo = bu.Instance(WBShellGeometry,())
+    geo = bu.Instance(WBShellGeometry, ())
 
     tmodel = bu.Instance(MATS2DElastic, ())
 
@@ -47,6 +48,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
                           depends_on="state_changed")
     '''Discretization object.
     '''
+
     @tr.cached_property
     def _get_xdomain(self):
         # prepare the mesh generator
@@ -90,7 +92,6 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     def _set_interrupt(self, value):
         self.sim.interrupt = value
 
-
     bc_loaded = tr.Property(depends_on="state_changed")
 
     @tr.cached_property
@@ -116,11 +117,12 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         fixed_xyz_dofs = (fixed_xyz_nodes[:, np.newaxis] * 3 + np.arange(3)[np.newaxis, :]).flatten()
         fixed_x_dofs = (fixed_x_nodes[:, np.newaxis] * 3).flatten()
         fixed_dofs = np.unique(np.hstack([fixed_xyz_dofs, fixed_x_dofs]))
-        bc_fixed = [BCDof(var= 'u', dof=dof, value=0 )
-                   for dof in fixed_dofs]
+        bc_fixed = [BCDof(var='u', dof=dof, value=0)
+                    for dof in fixed_dofs]
         return bc_fixed, fixed_nodes, fixed_dofs
 
     bc = tr.Property(depends_on="state_changed")
+
     @tr.cached_property
     def _get_bc(self):
         bc_fixed, _, _ = self.bc_fixed
@@ -181,11 +183,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         pb.objects['wb_mesh_0'] = wb_mesh_0
 
         wb_mesh_1 = k3d.mesh(X1_Id,
-                              I_Ei,
-                              color_map=k3d.colormaps.basic_color_maps.Jet,
-                              attribute=U_1.reshape(-1, 3)[:, 2],
-                              color_range=[np.min(U_1), np.max(U_1)],
-                              side='double')
+                             I_Ei,
+                             color_map=k3d.colormaps.basic_color_maps.Jet,
+                             attribute=U_1.reshape(-1, 3)[:, 2],
+                             color_range=[np.min(U_1), np.max(U_1)],
+                             side='double')
         pb.plot_fig += wb_mesh_1
         pb.objects['wb_mesh_1'] = wb_mesh_1
 
@@ -197,14 +199,13 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
             pb.plot_fig += k3d_mesh_wireframe
             pb.objects['mesh_wireframe'] = k3d_mesh_wireframe
 
-
     def update_plot(self, pb):
 
         X_Id = self.xdomain.mesh.X_Id
         print('analysis: update_plot', len(X_Id))
         if len(self.hist.U_t) == 0:
             U_1 = np.zeros_like(X_Id)
-            print('analysis: U_I',)
+            print('analysis: U_I', )
         else:
             U_1 = self.hist.U_t[-1]
         X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
@@ -222,12 +223,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         mesh.vertices = X1_Id
         mesh.indices = I_Ei
         mesh.attributes = U_1.reshape(-1, 3)[:, 2]
-        mesh.color_range=[np.min(U_1), np.max(U_1)]
+        mesh.color_range = [np.min(U_1), np.max(U_1)]
         if self.show_wireframe:
             wireframe = pb.objects['mesh_wireframe']
             wireframe.vertices = X1_Id
             wireframe.indices = I_Ei
-
 
     def get_Pw(self):
         import numpy as np
@@ -237,4 +237,3 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         F_loaded = np.sum(F_to[:, loaded_dofs], axis=-1)
         U_loaded = np.average(U_to[:, loaded_dofs], axis=-1)
         return U_loaded, F_loaded
-

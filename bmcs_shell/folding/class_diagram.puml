@@ -1,6 +1,24 @@
 @startuml
 'https://plantuml.com/class-diagram
 
+class Simulator {
+ run()
+}
+
+TStep --> Simulator
+
+class TStep {
+}
+
+TStepBC --|> TStep
+
+class TStepBC {
+    domains = [(xdomain, tmodel)]
+    bc
+}
+
+WBShellAnalysis --|> TStepBC
+
 class WBCell {
 }
 
@@ -31,7 +49,7 @@ WBShellGeometry --|> WBTessellation
 WBShellGeometry <.. FETriangularMesh : geo <
 
 
-class TModel{
+class TModel {
     get_corr_pred()
 }
 
