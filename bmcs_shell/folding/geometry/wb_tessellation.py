@@ -247,7 +247,6 @@ class WBTessellation(bu.InteractiveModel):
         self.I_Fi
 
     def setup_plot(self, pb):
-
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
@@ -317,7 +316,7 @@ class WBTessellation(bu.InteractiveModel):
     def _add_nodes_labels_to_fig(self, pb, X_Ia):
         text_list = []
         for I, X_a in enumerate(X_Ia):
-            k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False, size=0.8)
+            k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False, size=0.8, color=0x00FF00)
             pb.plot_fig += k3d_text
             text_list.append(k3d_text)
         pb.objects[self.NODES_LABELS] = text_list

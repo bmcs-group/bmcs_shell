@@ -9,11 +9,10 @@ import k3d
 class FETriangularMesh(bu.Model):
     name = 'FETriangularMesh'
 
-    X_Id = tr.Array(np.float_, value=[[0, 0, 0], [2, 0, 0], [2, 2, 0], [2, 0, 0], [1, 1, 0]])
-    I_Fi = tr.Array(np.int_, value=[[0, 1, 4],
-                                    [1, 2, 4],
-                                    [2, 3, 4],
-                                    [3, 0, 4]])
+    X_Id = tr.Array(np.float_, value=[[0, 0, 0], [2, 0, 0], [2, 2, 0], [1, 1, 0]])
+    I_Fi = tr.Array(np.int_, value=[[0, 1, 3],
+                                    [1, 2, 3],
+                                    ])
 
     fets = tr.Instance(FETS2D3U1M, ())
 
