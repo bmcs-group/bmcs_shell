@@ -16,12 +16,18 @@ class FETriangularMesh(bu.Model):
 
     fets = tr.Instance(FETS2D3U1M, ())
 
+    show_node_labels = bu.Bool(False)
+
     n_nodal_dofs = tr.DelegatesTo('fets')
     dof_offset = tr.Int(0)
 
     n_active_elems = tr.Property
     def _get_n_active_elems(self):
         return len(self.I_Fi)
+
+    ipw_view = bu.View(
+        bu.Item('show_node_labels'),
+    )
 
     #=========================================================================
     # 3d Visualization
@@ -47,6 +53,11 @@ class FETriangularMesh(bu.Model):
             pb.plot_fig += k3d_mesh_wireframe
             pb.objects['mesh_wireframe'] = k3d_mesh_wireframe
 
+        if self.show_node_labels:
+            self._add_nodes_labels_to_fig(pb, X_Id)
+
+    NODES_LABELS = 'nodes_labels'
+
     def update_plot(self, pb):
         X_Id = self.X_Id.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
@@ -58,3 +69,19 @@ class FETriangularMesh(bu.Model):
             wireframe = pb.objects['mesh_wireframe']
             wireframe.vertices = X_Id
             wireframe.indices = I_Fi
+
+        if self.show_node_labels:
+            if self.NODES_LABELS in pb.objects:
+                pb.clear_object(self.NODES_LABELS)
+            self._add_nodes_labels_to_fig(pb, X_Id)
+        else:
+            if self.NODES_LABELS in pb.objects:
+                pb.clear_object(self.NODES_LABELS)
+
+    def _add_nodes_labels_to_fig(self, pb, X_Id):
+        text_list = []
+        for I, X_d in enumerate(X_Id):
+            k3d_text = k3d.text('%g' % I, tuple(X_d), label_box=False, size=0.8, color=0x00FF00)
+            pb.plot_fig += k3d_text
+            text_list.append(k3d_text)
+        pb.objects[self.NODES_LABELS] = text_list

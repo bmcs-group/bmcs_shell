@@ -22,8 +22,8 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     show_wireframe = bu.Bool(True, GEO=True)
 
     ipw_view = bu.View(
-        bu.Item('F', editor=bu.FloatRangeEditor(low=-20000, high=20000, n_steps=100),
-                continuous_update=False),
+        # bu.Item('F', editor=bu.FloatRangeEditor(low=-20000, high=20000, n_steps=100),
+        #         continuous_update=False),
         bu.Item('h',
                 editor=bu.FloatRangeEditor(low=1, high=100, n_steps=100),
                 continuous_update=False),
@@ -61,6 +61,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     @tr.cached_property
     def _get_xdomain(self):
         # prepare the mesh generator
+        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=False, subdivision=2)
         mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
         # construct the domain with the kinematic strain mapper and stress integrator
         return TriXDomainFE(
@@ -116,9 +117,38 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         return bc_loaded, loaded_nodes, loaded_dofs
 
     bc_fixed = tr.Property(depends_on="state_changed")
-
     @tr.cached_property
     def _get_bc_fixed(self):
+        # This whole method can be moved to BoundaryConditions
+        if self.bc_fixed_method == 'automatic':
+            return self._get_bc_fixed_automatic()
+        elif self.bc_fixed_method == 'manual':
+            dofs_per_node = 3
+            # Note: bcs.bc_fixed gives nodes idicies in geo which are the same in mesh so no mapping is needed!
+            bcs_N_ = np.copy(self.bcs.bc_fixed) # [[node_idx, bc_x, bc_y, bc_z], ...]
+            fixed_nodes_N = np.copy(bcs_N_[:, 0])
+
+            unfiltered_dofs_Nd = bcs_N_[:, 0]
+            unfiltered_dofs_Nd = unfiltered_dofs_Nd[:, np.newaxis] * dofs_per_node + np.arange(dofs_per_node)[np.newaxis, :]
+            np.zeros_like(bcs_N_[:, 1:])
+            unfiltered_dofs_N_ = np.zeros_like(bcs_N_)
+            unfiltered_dofs_N_[:, 1:] = unfiltered_dofs_Nd
+
+            # Replacing nodes indices with nan so they can be eliminated too when extracting dofs
+            bcs_N_[:, 0] = np.full_like(bcs_N_[:, 0], np.nan)
+
+            no_nan_mask = ~np.isnan(bcs_N_)
+            dofs = unfiltered_dofs_N_[no_nan_mask].astype(np.uint32)
+            dofs_values = bcs_N_[no_nan_mask]
+
+            bc_fixed = [BCDof(var='u', dof=dof, value=val)
+                        for dof, val in zip(dofs, dofs_values)]
+
+            return bc_fixed, fixed_nodes_N, dofs
+
+    bc_fixed_method = bu.Str('manual')
+
+    def _get_bc_fixed_automatic(self):
         xdomain = self.xdomain
         # Node indicies for nodes that are fixed in x, y, z directions
         fixed_xyz_nodes = xdomain.bc_J_xyz
@@ -131,6 +161,21 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         bc_fixed = [BCDof(var='u', dof=dof, value=0)
                     for dof in fixed_dofs]
         return bc_fixed, fixed_nodes, fixed_dofs
+
+    # @tr.cached_property
+    # def _get_bc_fixed(self):
+    #     xdomain = self.xdomain
+    #     # Node indicies for nodes that are fixed in x, y, z directions
+    #     fixed_xyz_nodes = xdomain.bc_J_xyz
+    #     # Node indicies for nodes that are fixed in x direction
+    #     fixed_x_nodes = xdomain.bc_J_x
+    #     fixed_nodes = np.unique(np.hstack([fixed_xyz_nodes, fixed_x_nodes]))
+    #     fixed_xyz_dofs = (fixed_xyz_nodes[:, np.newaxis] * 3 + np.arange(3)[np.newaxis, :]).flatten()
+    #     fixed_x_dofs = (fixed_x_nodes[:, np.newaxis] * 3).flatten()
+    #     fixed_dofs = np.unique(np.hstack([fixed_xyz_dofs, fixed_x_dofs]))
+    #     bc_fixed = [BCDof(var='u', dof=dof, value=0)
+    #                 for dof in fixed_dofs]
+    #     return bc_fixed, fixed_nodes, fixed_dofs
 
     bc = tr.Property(depends_on="state_changed")
 
@@ -169,20 +214,20 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         X1_Id = X1_Id.astype(np.float32)
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
 
-        _, fixed_nodes, _ = self.bc_fixed
-        _, loaded_nodes, _ = self.bc_loaded
-
-        X_Ma = X1_Id[fixed_nodes]
-
-        k3d_fixed_nodes = k3d.points(X_Ma, color=0x22ffff, point_size=100)
-        pb.plot_fig += k3d_fixed_nodes
-        pb.objects['fixed_nodes'] = k3d_fixed_nodes
-
-        X_Ma = X1_Id[loaded_nodes]
-
-        k3d_loaded_nodes = k3d.points(X_Ma, color=0xff22ff, point_size=100)
-        pb.plot_fig += k3d_loaded_nodes
-        pb.objects['loaded_nodes'] = k3d_loaded_nodes
+        # _, fixed_nodes, _ = self.bc_fixed
+        # _, loaded_nodes, _ = self.bc_loaded
+        #
+        # X_Ma = X1_Id[fixed_nodes]
+        #
+        # k3d_fixed_nodes = k3d.points(X_Ma, color=0x22ffff, point_size=100)
+        # pb.plot_fig += k3d_fixed_nodes
+        # pb.objects['fixed_nodes'] = k3d_fixed_nodes
+        #
+        # X_Ma = X1_Id[loaded_nodes]
+        #
+        # k3d_loaded_nodes = k3d.points(X_Ma, color=0xff22ff, point_size=100)
+        # pb.plot_fig += k3d_loaded_nodes
+        # pb.objects['loaded_nodes'] = k3d_loaded_nodes
 
         # Original state mesh
         wb_mesh_0 = k3d.mesh(self.xdomain.X_Id.astype(np.float32),
@@ -223,11 +268,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
 
-        _, fixed_nodes, _ = self.bc_fixed
-        _, loaded_nodes, _ = self.bc_loaded
-
-        pb.objects['fixed_nodes'].positions = X1_Id[fixed_nodes]
-        pb.objects['loaded_nodes'].positions = X1_Id[loaded_nodes]
+        # _, fixed_nodes, _ = self.bc_fixed
+        # _, loaded_nodes, _ = self.bc_loaded
+        #
+        # pb.objects['fixed_nodes'].positions = X1_Id[fixed_nodes]
+        # pb.objects['loaded_nodes'].positions = X1_Id[loaded_nodes]
 
         mesh = pb.objects['wb_mesh_1']
         mesh.vertices = X1_Id

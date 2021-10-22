@@ -28,6 +28,7 @@ class WBShellFETriangularMesh(FETriangularMesh):
     show_wireframe = bu.Bool(True, GEO=True)
 
     ipw_view = bu.View(
+        *FETriangularMesh.ipw_view.content,
         bu.Item('subdivision'),
         bu.Item('direct_mesh'),
         bu.Item('export_vtk'),
