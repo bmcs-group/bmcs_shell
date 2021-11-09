@@ -52,13 +52,13 @@ class WBTessellation(bu.InteractiveModel):
 
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi/2, n_steps=100, continuous_update=False)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-6, high_name='a_high', n_steps=100,
-                                                           continuous_update=False)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-6, high_name='b_high', n_steps=100,
-                                                           continuous_update=False)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-6, high_name='c_high', n_steps=100,
-                                                           continuous_update=False)),
+            low=1e-3, high=np.pi/2, n_steps=100, continuous_update=True)),
+        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-3, high_name='a_high', n_steps=100,
+                                                           continuous_update=True)),
+        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-3, high_name='b_high', n_steps=100,
+                                                           continuous_update=True)),
+        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-3, high_name='c_high', n_steps=100,
+                                                           continuous_update=True)),
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
         bu.Item('show_wireframe'),
@@ -245,6 +245,7 @@ class WBTessellation(bu.InteractiveModel):
     @tr.cached_property
     def _get_I_Li(self):
         self.I_Fi
+
 
     def setup_plot(self, pb):
         X_Ia = self.X_Ia.astype(np.float32)

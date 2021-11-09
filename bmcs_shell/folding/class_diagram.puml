@@ -1,6 +1,14 @@
 @startuml
 'https://plantuml.com/class-diagram
 
+class FETS2D3U1M{
+N_im
+dN_imr
+eta_ip
+}
+
+FETriangularMesh --> FETS2D3U1M : fets >
+
 class Simulator {
  run()
 }

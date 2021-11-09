@@ -1,4 +1,7 @@
 import traits.api as tr
+from ibvpy.fets import FETSEval
+
+from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.analysis.wb_fets2d3u1m_fe import FETS2D3U1M
 import bmcs_utils.api as bu
 import numpy as np
@@ -14,7 +17,9 @@ class FETriangularMesh(bu.Model):
                                     [1, 2, 3],
                                     ])
 
-    fets = tr.Instance(FETS2D3U1M, ())
+    fets = tr.Instance(FETSEval)
+    def _fets_default(self):
+        return FETS2D3U1M()
 
     show_node_labels = bu.Bool(False)
 
@@ -40,7 +45,7 @@ class FETriangularMesh(bu.Model):
         I_Fi = self.I_Fi.astype(np.uint32)
 
         fe_mesh = k3d.mesh(X_Id, I_Fi,
-                              color=0x999999, opacity=0.5,
+                              color=0x999999, opacity=1.0,
                               side='double')
         pb.plot_fig += fe_mesh
         pb.objects['mesh'] = fe_mesh
