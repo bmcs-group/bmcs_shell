@@ -200,6 +200,13 @@ class TriXDomainMITC(XDomainFE):
     def _get_B_Eso(self):
         # Calculating dx_dr
 
+        # m: num of Gauss points
+        # r: num of curvilinear (natural) coordinates (r, s, t)
+        # i: num of shape functions max = 3, (h1, h2, h3)
+        # i: num of nodes in each element max = 3, (0, 1, 2)
+        # F: global num of elements
+        # d: coordinates (x, y, z)
+
         dN_imr = self.fets.dN_imr
         dNt_imr = self.fets.dNt_imr
 
@@ -248,6 +255,42 @@ class TriXDomainMITC(XDomainFE):
         du_dr2_Fmria = np.einsum('Fia, imr ->Fmria', 0.5 * a * v1_v2_dif_Fid, dNt_imr)
         du_dr2_Fmra = np.sum(du_dr2_Fmria, axis=3)
         du_dr_Fmra = du_dr1_Fmra + du_dr2_Fmra
+
+        # Get B
+        # 1. Get dN_dr
+        element_dofs = 3 * self.fets.n_nodal_dofs
+        dN_dr_Emrco = np.zeros((*dx_dr_Fmrd.shape, element_dofs))
+        # Filling first 3x3 elements from N matrices
+        dofs = 5
+        # Looping r, s, t
+        for i in range(3):
+            # Looping h1, h2, h3
+            for j in range(3):
+                dN_dr_Emrco[..., i, :, 0 + j * dofs:3 + j * dofs] = np.identity(3) * dN_imr[
+                    j, 0, i]  # dh1/dr (which is the same for all gaus points)
+        N4_Fmrai = np.einsum('Fia, imr ->Fmrai', -0.5 * a * v2_Fid, dNt_imr)
+        N5_Fmrai = np.einsum('Fia, imr ->Fmrai', +0.5 * a * v1_Fid, dNt_imr)
+        dN_dr_Emrco[..., :, [3, 8, 13]] = N4_Fmrai
+        dN_dr_Emrco[..., :, [4, 9, 14]] = N5_Fmrai
+
+        x_Ia = self.X_Id
+        x_Eia = x_Ia[self.I_Ei]
+        delta = np.identity(3)
+        Diff1_abcd = 0.5 * (
+                np.einsum('ac,bd->abcd', delta, delta) +
+                np.einsum('ad,bc->abcd', delta, delta)
+        )
+
+        J_Fmrd = dx_dr_Fmrd
+
+        inv_J_Fmrd = np.linalg.inv(J_Fmrd)
+        det_J_Fmrd = np.linalg.det(J_Fmrd)
+        B_Emabo = np.einsum('abcd, Emrco, Emrd -> Emabo', Diff1_abcd, dN_dr_Emrco, inv_J_Fmrd)
+
+        U_o = np.array([0, 0, 0, 0, 0,
+                        0, 1, 0, 0, 0,
+                        0, 1, 0, 0, 0], dtype=np.float_)
+        eps_Emab = np.einsum('Emabo, o -> Emab', B_Emabo, U_o)
 
 
         # X_Id = self.X_Id # array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3], [x4, y4, z4]...])
@@ -425,7 +468,6 @@ class TriXDomainMITC(XDomainFE):
 
     def map_field_to_K(self, D_Est):
         print('map_field_to_K')
-        #==========================================================================
         B_Eso, det_J_E = self.B_Eso
         k2_ij = self.integ_factor * np.einsum('Eso,Est,Etp,E->Eop', B_Eso, D_Est, B_Eso, det_J_E / 2)
         K_Eiejf = k2_ij.reshape(-1, 3, 2, 3, 2)
