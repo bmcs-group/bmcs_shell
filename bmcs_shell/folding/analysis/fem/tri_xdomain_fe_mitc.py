@@ -1,3 +1,15 @@
+# Indices reference:
+# ------------------
+# m: num of Gauss points
+# r: num of curvilinear (natural) coordinates (r, s, t)
+# i: num of shape functions max = 3, (h1, h2, h3)
+# i: num of nodes in each element max = 3, (0, 1, 2)
+# F: global num of elements?
+# E: global num of elements?
+# a: coordinates (x, y, z)
+# b: coordinates (x, y, z)
+# c: coordinates (x, y, z)
+# d: coordinates (x, y, z)
 
 import traits.api as tr
 from ibvpy.mathkit.tensor import DELTA23_ab
@@ -60,7 +72,7 @@ class TriXDomainMITC(XDomainFE):
     '''
     @tr.cached_property
     def _get_Na_deta(self):
-        return np.einsum('imr->mri', self.fets.dN_imr)
+        return np.einsum('imr->mri', self.fets.dh_imr)
 
     x_0 = tr.Property()
     r'''Derivatives of the shape functions in the integration points.
@@ -195,35 +207,44 @@ class TriXDomainMITC(XDomainFE):
         mesh.vertices = X_Ia
         mesh.indices = I_Fi
 
-    B_Eso = tr.Property(depends_on='+GEO')
+    def _get_du_dr_Fmra(self, U_o):
+        dh_imr = self.fets.dh_imr
+        dht_imr = self.fets.dht_imr
+        _, v1_Fid, v2_Fid = self.v_vectors
+        a = self.fets.a
+
+        # Calculating du_dr
+        U_o = np.arange(3 * 5) # TODO U_o comes from function arguments, this is just for testing
+        nodes_num = self.mesh.X_Id.shape[0]
+        U_Ie = np.reshape(U_o, (nodes_num, self.fets.n_nodal_dofs))
+        U_Fie = U_Ie[self.mesh.I_Fi]
+        disp_U_Fia = U_Fie[..., :3]
+        rot_U_Fib = U_Fie[..., 3:]
+        du_dr1_Fmria = np.einsum('Fia, imr ->Fmria', disp_U_Fia, dh_imr)
+        du_dr1_Fmra = np.sum(du_dr1_Fmria, axis=3)
+
+        alpha_idx = 0
+        beta_idx = 1
+        alpha_Fi1 = rot_U_Fib[..., alpha_idx, np.newaxis]
+        beta_Fi1 = rot_U_Fib[..., beta_idx, np.newaxis]
+        v2_alpha_Fid = v2_Fid * alpha_Fi1
+        v1_beta_Fid = v1_Fid * beta_Fi1
+        v1_v2_dif_Fid = v1_beta_Fid - v2_alpha_Fid
+        du_dr2_Fmria = np.einsum('Fia, imr ->Fmria', 0.5 * a * v1_v2_dif_Fid, dht_imr)
+        du_dr2_Fmra = np.sum(du_dr2_Fmria, axis=3)
+        du_dr_Fmra = du_dr1_Fmra + du_dr2_Fmra
+        return du_dr_Fmra
+
+    v_vectors = tr.Property(depends_on='+GEO')
     @tr.cached_property
-    def _get_B_Eso(self):
-        # Calculating dx_dr
-
-        # m: num of Gauss points
-        # r: num of curvilinear (natural) coordinates (r, s, t)
-        # i: num of shape functions max = 3, (h1, h2, h3)
-        # i: num of nodes in each element max = 3, (0, 1, 2)
-        # F: global num of elements
-        # d: coordinates (x, y, z)
-
-        dN_imr = self.fets.dN_imr
-        dNt_imr = self.fets.dNt_imr
-
-        X_Fid = self.X_Id[self.mesh.I_Fi]
-
-        a = 1  # thickness
+    def _get_v_vectors(self):
+        # See P. 472 FEM by Zienkiewicz (ISBN: 1856176339)
+        # Calculating v_n (director vector)
         n_Fd = self.norm_F_normals
         el_nodes_num = 3
         Vn_Fid = np.tile(n_Fd, (1, 1, el_nodes_num)).reshape(n_Fd.shape[0], n_Fd.shape[1], el_nodes_num)
 
-        dx_dr1_Fmrid = np.einsum('Fid, imr ->Fmrid', X_Fid, dN_imr)
-        dx_dr2_Fmrid = np.einsum('Fid, imr ->Fmrid', 0.5 * a * Vn_Fid, dNt_imr)
-        dx_dr1_Fmrd = np.sum(dx_dr1_Fmrid, axis=3)
-        dx_dr2_Fmrd = np.sum(dx_dr2_Fmrid, axis=3)
-        dx_dr_Fmrd = dx_dr1_Fmrd + dx_dr2_Fmrd
-
-        # Calculating v1 and v2
+        # Calculating v1 and v2 (vectors perpendicular to director vector)
         min_Fi1 = Vn_Fid.argmin(axis=2)
         min_Fi1 = min_Fi1[..., np.newaxis]
         tmp_Fid = np.zeros_like(Vn_Fid, dtype=np.int_)
@@ -235,211 +256,185 @@ class TriXDomainMITC(XDomainFE):
         v1_Fid = self._normalize(V1_Fid)
         v2_Fid = self._normalize(V2_Fid)
 
-        # Calculating du_dr
-        U_o = np.arange(3 * 5) # TODO change
-        nodes_num = self.mesh.X_Id.shape[0]
-        U_Ie = np.reshape(U_o, (nodes_num, self.fets.n_nodal_dofs))
-        U_Fie = U_Ie[self.mesh.I_Fi]
-        disp_U_Fia = U_Fie[..., :3]
-        rot_U_Fib = U_Fie[..., 3:]
-        du_dr1_Fmria = np.einsum('Fia, imr ->Fmria', disp_U_Fia, dN_imr)
-        du_dr1_Fmra = np.sum(du_dr1_Fmria, axis=3)
-
-        alpha_idx = 0
-        beta_idx = 1
-        alpha_Fi1 = rot_U_Fib[..., alpha_idx, np.newaxis]
-        beta_Fi1 = rot_U_Fib[..., beta_idx, np.newaxis]
-        v2_alpha_Fid = v2_Fid * alpha_Fi1
-        v1_beta_Fid = v1_Fid * beta_Fi1
-        v1_v2_dif_Fid = v1_beta_Fid - v2_alpha_Fid
-        du_dr2_Fmria = np.einsum('Fia, imr ->Fmria', 0.5 * a * v1_v2_dif_Fid, dNt_imr)
-        du_dr2_Fmra = np.sum(du_dr2_Fmria, axis=3)
-        du_dr_Fmra = du_dr1_Fmra + du_dr2_Fmra
-
-        # Get B
-        # 1. Get dN_dr
-        element_dofs = 3 * self.fets.n_nodal_dofs
-        dN_dr_Emrco = np.zeros((*dx_dr_Fmrd.shape, element_dofs))
-        # Filling first 3x3 elements from N matrices
-        dofs = 5
-        # Looping r, s, t
-        for i in range(3):
-            # Looping h1, h2, h3
-            for j in range(3):
-                dN_dr_Emrco[..., i, :, 0 + j * dofs:3 + j * dofs] = np.identity(3) * dN_imr[
-                    j, 0, i]  # dh1/dr (which is the same for all gaus points)
-        N4_Fmrai = np.einsum('Fia, imr ->Fmrai', -0.5 * a * v2_Fid, dNt_imr)
-        N5_Fmrai = np.einsum('Fia, imr ->Fmrai', +0.5 * a * v1_Fid, dNt_imr)
-        dN_dr_Emrco[..., :, [3, 8, 13]] = N4_Fmrai
-        dN_dr_Emrco[..., :, [4, 9, 14]] = N5_Fmrai
-
-        x_Ia = self.X_Id
-        x_Eia = x_Ia[self.I_Ei]
-        delta = np.identity(3)
-        Diff1_abcd = 0.5 * (
-                np.einsum('ac,bd->abcd', delta, delta) +
-                np.einsum('ad,bc->abcd', delta, delta)
-        )
-
-        J_Fmrd = dx_dr_Fmrd
-
-        inv_J_Fmrd = np.linalg.inv(J_Fmrd)
-        det_J_Fmrd = np.linalg.det(J_Fmrd)
-        B_Emabo = np.einsum('abcd, Emrco, Emrd -> Emabo', Diff1_abcd, dN_dr_Emrco, inv_J_Fmrd)
-
-        U_o = np.array([0, 0, 0, 0, 0,
-                        0, 1, 0, 0, 0,
-                        0, 1, 0, 0, 0], dtype=np.float_)
-        eps_Emab = np.einsum('Emabo, o -> Emab', B_Emabo, U_o)
-
-
-        # X_Id = self.X_Id # array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3], [x4, y4, z4]...])
-        # print('X_Id:', X_Id)
-        # I_Fi = self.mesh.I_Fi
-        # print('I_Fi:', I_Fi)
-        # X_Fid = X_Id[I_Fi]
-        # X_Fid0 = X_Fid[0] # first element
-        # print('X_Fid0:', X_Fid0)
-        # x1, x2, x3 = X_Fid0[0], X_Fid0[1], X_Fid0[2] # coords vectors of each node in the element
-        #
-        # a_1, a_2, a_3 = np.full(3, self.mesh.fets.t)  # element thickness at each node
-        # V1_n = self.norm_F_normals[0]  # normal of first element
-        # V2_n = V1_n
-        # V3_n = V1_n
-        #
-        # xs = np.array([x1, x2, x3, 0.5 * a_1 * V1_n, 0.5 * a_2 * V2_n, 0.5 * a_3 * V3_n]).T
-        # dN_imr = self.fets.dN_imr
-        # dNt_imr = self.fets.dNt_imr
-        # dNs = np.array([dN_imr[:, 0, 0]]) # [: takes dh1/d_r, dh2/d_r, dh3/d_r, 0 first gauss point, 0 d_r]
-        # dNts = np.array([dNt_imr[:, 0, 0]])
-        # dN_dNt = np.hstack((dNs, dNts))
-        # dx_r = dN_dNt * xs
-        #
-        # J = np.vstack((dx_r, dx_s, dx_t))
-        #
-        #
-        # xx_Ei, yy_Ei = np.einsum('...a->a...', self.x_Eia)
-        #
-        # y23 = yy_Ei[:, 1] - yy_Ei[:, 2]
-        # y31 = yy_Ei[:, 2] - yy_Ei[:, 0]
-        # y12 = yy_Ei[:, 0] - yy_Ei[:, 1]
-        # x32 = xx_Ei[:, 2] - xx_Ei[:, 1]
-        # x13 = xx_Ei[:, 0] - xx_Ei[:, 2]
-        # x21 = xx_Ei[:, 1] - xx_Ei[:, 0]
-        # x23 = -x32
-        # y32 = -y23
-        # y13 = -y31
-        #
-        # J_Ear = np.array([[x13, y13], [x23, y23]])
-        # J_Ear = np.einsum('ar...->...ar', J_Ear)
-        # det_J_E = np.linalg.det(J_Ear)
-        #
-        # O = np.zeros_like(y23)
-        # B_soE = np.array(
-        #     [
-        #         [y23, O, y31, O, y12, O],
-        #         [O, x32, O, x13, O, x21],
-        #         [x32, y23, x13, y31, x21, y12]
-        #     ]
-        # )
-        B_Eso = np.einsum('soE,E->Eso', B_soE, 1 / det_J_E)
-        return B_Eso, det_J_E
+        return Vn_Fid, v1_Fid, v2_Fid
 
     def _normalize(self, V_Fid):
         mag_n = np.sqrt(np.einsum('...i,...i', V_Fid, V_Fid))
         v_Fid = V_Fid / mag_n[:, np.newaxis]
         return v_Fid
 
+    dx_dr_Fmrd = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_dx_dr_Fmrd(self):
+        Vn_Fid, _, _ = self.v_vectors
+
+        dh_imr = self.fets.dh_imr
+        dht_imr = self.fets.dht_imr
+
+        X_Fid = self.X_Id[self.mesh.I_Fi]
+        a = self.fets.a  # thickness (TODO, make it available as input)
+        dx_dr1_Fmrid = np.einsum('Fid, imr -> Fmrid', X_Fid, dh_imr)
+        dx_dr2_Fmrid = np.einsum('Fid, imr -> Fmrid', 0.5 * a * Vn_Fid, dht_imr)
+        dx_dr1_Fmrd = np.sum(dx_dr1_Fmrid, axis=3)
+        dx_dr2_Fmrd = np.sum(dx_dr2_Fmrid, axis=3)
+        dx_dr_Fmrd = dx_dr1_Fmrd + dx_dr2_Fmrd
+        return dx_dr_Fmrd
+
+    dN_dr_Emrco = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_dN_dr_Emrco(self):
+        # thickness
+        a = self.fets.a
+        _, v1_Fid, v2_Fid = self.v_vectors
+        dh_imr = self.fets.dh_imr
+        dht_imr = self.fets.dht_imr
+
+        element_dofs = 3 * self.fets.n_nodal_dofs
+        dN_dr_Emrco = np.zeros((*self.dx_dr_Fmrd.shape, element_dofs))
+        # Filling first 3x3 elements from N matrices
+        dofs = 5
+        # Looping r, s, t
+        for i in range(3):
+            # Looping h1, h2, h3
+            for j in range(3):
+                dN_dr_Emrco[..., i, :, 0 + j * dofs:3 + j * dofs] = np.identity(3) * dh_imr[
+                    j, 0, i]  # dh1/dr (which is the same for all gaus points)
+                # Example: dh_imr[2, 1, 0] is dh3/dr for the second Gauss point
+        N4_Fmrai = np.einsum('Fia, imr ->Fmrai', -0.5 * a * v2_Fid, dht_imr)
+        N5_Fmrai = np.einsum('Fia, imr ->Fmrai', +0.5 * a * v1_Fid, dht_imr)
+        dN_dr_Emrco[..., :, [3, 8, 13]] = N4_Fmrai
+        dN_dr_Emrco[..., :, [4, 9, 14]] = N5_Fmrai
+        return dN_dr_Emrco
+
+    B_Emabo = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_B_Emabo(self):
+        delta = np.identity(3)
+        Diff1_abcd = 0.5 * (
+                np.einsum('ac,bd->abcd', delta, delta) +
+                np.einsum('ad,bc->abcd', delta, delta)
+        )
+        J_Fmrd = self.dx_dr_Fmrd
+
+        inv_J_Fmrd = np.linalg.inv(J_Fmrd)
+        det_J_Fm = np.linalg.det(J_Fmrd)
+        B_Emabo = np.einsum('abcd, Emrco, Emrd -> Emabo', Diff1_abcd, self.dN_dr_Emrco, inv_J_Fmrd)
+        return B_Emabo, det_J_Fm
+
+    # B_Eso = tr.Property(depends_on='+GEO')
+    # @tr.cached_property
+    # def _get_B_Eso(self):
+    #     # Calculating dx_dr
+    #
+    #     # m: num of Gauss points
+    #     # r: num of curvilinear (natural) coordinates (r, s, t)
+    #     # i: num of shape functions max = 3, (h1, h2, h3)
+    #     # i: num of nodes in each element max = 3, (0, 1, 2)
+    #     # F: global num of elements
+    #     # d: coordinates (x, y, z)
+    #
+    #     dh_imr = self.fets.dh_imr
+    #     dht_imr = self.fets.dht_imr
+    #
+    #     X_Fid = self.X_Id[self.mesh.I_Fi]
+    #
+    #     a = 1  # thickness
+    #     n_Fd = self.norm_F_normals
+    #     el_nodes_num = 3
+    #     Vn_Fid = np.tile(n_Fd, (1, 1, el_nodes_num)).reshape(n_Fd.shape[0], n_Fd.shape[1], el_nodes_num)
+    #
+    #     dx_dr1_Fmrid = np.einsum('Fid, imr ->Fmrid', X_Fid, dh_imr)
+    #     dx_dr2_Fmrid = np.einsum('Fid, imr ->Fmrid', 0.5 * a * Vn_Fid, dht_imr)
+    #     dx_dr1_Fmrd = np.sum(dx_dr1_Fmrid, axis=3)
+    #     dx_dr2_Fmrd = np.sum(dx_dr2_Fmrid, axis=3)
+    #     dx_dr_Fmrd = dx_dr1_Fmrd + dx_dr2_Fmrd
+    #
+    #     # Calculating v1 and v2
+    #     min_Fi1 = Vn_Fid.argmin(axis=2)
+    #     min_Fi1 = min_Fi1[..., np.newaxis]
+    #     tmp_Fid = np.zeros_like(Vn_Fid, dtype=np.int_)
+    #     tmp_Fid[..., :] = np.arange(3)
+    #     min_mask_Fid = tmp_Fid == min_Fi1
+    #     e_x_min_Fid = min_mask_Fid * 1
+    #     V1_Fid = np.cross(e_x_min_Fid, Vn_Fid)
+    #     V2_Fid = np.cross(Vn_Fid, V1_Fid)
+    #     v1_Fid = self._normalize(V1_Fid)
+    #     v2_Fid = self._normalize(V2_Fid)
+    #
+    #     # Calculating du_dr
+    #     U_o = np.arange(3 * 5) # TODO change
+    #     nodes_num = self.mesh.X_Id.shape[0]
+    #     U_Ie = np.reshape(U_o, (nodes_num, self.fets.n_nodal_dofs))
+    #     U_Fie = U_Ie[self.mesh.I_Fi]
+    #     disp_U_Fia = U_Fie[..., :3]
+    #     rot_U_Fib = U_Fie[..., 3:]
+    #     du_dr1_Fmria = np.einsum('Fia, imr ->Fmria', disp_U_Fia, dh_imr)
+    #     du_dr1_Fmra = np.sum(du_dr1_Fmria, axis=3)
+    #
+    #     alpha_idx = 0
+    #     beta_idx = 1
+    #     alpha_Fi1 = rot_U_Fib[..., alpha_idx, np.newaxis]
+    #     beta_Fi1 = rot_U_Fib[..., beta_idx, np.newaxis]
+    #     v2_alpha_Fid = v2_Fid * alpha_Fi1
+    #     v1_beta_Fid = v1_Fid * beta_Fi1
+    #     v1_v2_dif_Fid = v1_beta_Fid - v2_alpha_Fid
+    #     du_dr2_Fmria = np.einsum('Fia, imr ->Fmria', 0.5 * a * v1_v2_dif_Fid, dht_imr)
+    #     du_dr2_Fmra = np.sum(du_dr2_Fmria, axis=3)
+    #     du_dr_Fmra = du_dr1_Fmra + du_dr2_Fmra
+    #
+    #     # Get B
+    #     # 1. Get dN_dr
+    #     element_dofs = 3 * self.fets.n_nodal_dofs
+    #     dN_dr_Emrco = np.zeros((*dx_dr_Fmrd.shape, element_dofs))
+    #     # Filling first 3x3 elements from N matrices
+    #     dofs = 5
+    #     # Looping r, s, t
+    #     for i in range(3):
+    #         # Looping h1, h2, h3
+    #         for j in range(3):
+    #             dN_dr_Emrco[..., i, :, 0 + j * dofs:3 + j * dofs] = np.identity(3) * dh_imr[
+    #                 j, 0, i]  # dh1/dr (which is the same for all gaus points)
+    #     N4_Fmrai = np.einsum('Fia, imr ->Fmrai', -0.5 * a * v2_Fid, dht_imr)
+    #     N5_Fmrai = np.einsum('Fia, imr ->Fmrai', +0.5 * a * v1_Fid, dht_imr)
+    #     dN_dr_Emrco[..., :, [3, 8, 13]] = N4_Fmrai
+    #     dN_dr_Emrco[..., :, [4, 9, 14]] = N5_Fmrai
+    #
+    #     x_Ia = self.X_Id
+    #     x_Eia = x_Ia[self.I_Ei]
+    #     delta = np.identity(3)
+    #     Diff1_abcd = 0.5 * (
+    #             np.einsum('ac,bd->abcd', delta, delta) +
+    #             np.einsum('ad,bc->abcd', delta, delta)
+    #     )
+    #
+    #     J_Fmrd = dx_dr_Fmrd
+    #
+    #     inv_J_Fmrd = np.linalg.inv(J_Fmrd)
+    #     det_J_Fmrd = np.linalg.det(J_Fmrd)
+    #     B_Emabo = np.einsum('abcd, Emrco, Emrd -> Emabo', Diff1_abcd, dN_dr_Emrco, inv_J_Fmrd)
+    #
+    #     U_o = np.array([0, 0, 0, 0, 0,
+    #                     0, 1, 0, 0, 0,
+    #                     0, 1, 0, 0, 0], dtype=np.float_)
+    #     eps_Emab = np.einsum('Emabo, o -> Emab', B_Emabo, U_o)
+    #
+    #     B_Eso = np.einsum('soE,E->Eso', B_soE, 1 / det_J_E)
+    #     return B_Eso, det_J_E
 
     def map_U_to_field(self, U_o):
         print('map_U_to_field')
-        # U_o = [0, 0, 0, 0, 0, 0] - DOFs mesh submodul
+        # # For testing with one element:
+        # U_o = np.array([0, 0, 0, 0, 0,
+        #                 0, 1, 0, 0, 0,
+        #                 0, 1, 0, 0, 0], dtype=np.float_)
         print('U_o:', U_o)
-        U_Id = np.reshape(U_o, (3, -1))
-        print('U_Id:', U_Id)
-        dN_imr = self.fets.dN_imr
-        dNt_imr = self.fets.dNt_imr
-        X_Id = self.X_Id # array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3], [x4, y4, z4]...])
-        print('X_Id:', X_Id)
-        I_Fi = self.mesh.I_Fi
-        print('I_Fi:', I_Fi)
-        X_Fid = X_Id[I_Fi]
-        print('X_Fid:', X_Fid)
-        U_Fid = U_Id[I_Fi]
-        print('U_Fid:', U_Fid)
 
-        X_Fid0 = X_Fid[0] # first element
-        print('X_Fid0:', X_Fid0)
-        X_Uid0 = U_Fid[0]
-        print('X_Uid0:', X_Uid0)
-        x1, x2, x3 = X_Fid0[0], X_Fid0[1], X_Fid0[2] # coords vectors of each node in the element
-        u1_, u2_, u3_ = X_Uid0[0], X_Uid0[1], X_Uid0[2]  # disp vectors of each node in the element
-        u1, u2, u3 = u1_[:3], u2_[:3], u3_[:3]
-        a_1, a_2, a_3 = np.full(3, self.mesh.fets.t)  # element thickness at each node
-        # TODO, update all V vectors
-        V1_n = self.norm_F_normals[0]  # normal of first element
-        V2_n = V1_n
-        V3_n = V1_n
-        V1_1 = V1_n
-        V1_2 = np.cross(V1_n, V1_1)
-        V2_1 = V1_n
-        V2_2 = np.cross(V2_n, V2_1)
-        V3_1 = V1_n
-        V3_2 = np.cross(V3_n, V3_1)
+        B_Emabo, _ = self.B_Emabo
+        eps_Emab = np.einsum('Emabo, o -> Emab', B_Emabo, U_o)
+        return eps_Emab
 
-        # alpha_i is rotation of the in the node around (Vi_1)
-        alpha_1, alpha_2, alpha_3 = u1_[3], u2_[3], u3_[3]
-        # beta_i is rotation of the in the node around (Vi_2)
-        beta_1, beta_2, beta_3 = u1_[4], u2_[4], u3_[4]
-        # xs = np.array([x1, x2, x3, 0.5 * a_1 * V1_n, 0.5 * a_2 * V2_n, 0.5 * a_3 * V3_n]).T
-        # us = np.array([u1, u2, u3,
-        #                0.5 * a_1 * (-V1_2 * alpha_1 + V1_1 * beta_1),
-        #                0.5 * a_2 * (-V2_2 * alpha_2 + V2_1 * beta_2),
-        #                0.5 * a_3 * (-V3_2 * alpha_3 + V3_1 * beta_3)]).T
-        # dNs = np.array([dN_imr[:, 0, 0]]) # [: takes dh1/d_r, dh2/d_r, dh3/d_r, 0 first gauss point, 0 d_r]
-        # dNts = np.array([dNt_imr[:, 0, 0]])
-        # dN_dNt = np.hstack((dNs, dNts))
-        # dx_r = dN_dNt * xs
-
-        ##########################################################################################
-        h_mi = self.fets.N_im
-
-        # TODO: Or just prepare
-        for r, s, t in self.fets.eta_ip:
-            V_n = np.array([V1_n, V2_n, V3_n]).T
-            a = np.full(3, self.mesh.fets.t)
-            h_1 = 1 - r - s
-            h_2 = r
-            h_3 = s
-            h = np.array([h_1, h_2, h_3])
-            dx_r = -x1 + x2 + 0.5 * t * (-a_1 * V1_n + a_2 * V2_n)
-            dx_s = -x1 + x3 + 0.5 * t * (-a_1 * V1_n + a_3 * V3_n)
-            dx_t = 0.5 * np.sum(a * h * V_n)
-            du_r = -u1 + u2 + 0.5 * t * (-a_1 * (-V1_2 * alpha_1 + V1_1 * beta_1) + a_2 * (-V2_2 * alpha_2 + V2_1 * beta_2))
-            du_s = -u1 + u3 + 0.5 * t * (-a_1 * (-V1_2 * alpha_1 + V1_1 * beta_1) + a_3 * (-V3_2 * alpha_3 + V3_1 * beta_3))
-            du_t = 0.5 * (a_1 * h_1 * (-V1_2 * alpha_1 + V1_1 * beta_1) + a_2 * h_2 * (-V2_2 * alpha_2 + V2_1 * beta_2) + a_3 * h_3 * (-V3_2 * alpha_3 + V3_1 * beta_3))
-
-            e_rr = np.dot(dx_r, du_r)
-            e_rs = np.dot(dx_r, du_s)
-            e_rt = np.dot(dx_r, du_t)
-            e_sr = np.dot(dx_s, du_r)
-            e_ss = np.dot(dx_s, du_s)
-            e_st = np.dot(dx_s, du_t)
-            e_tr = np.dot(dx_t, du_r)
-            e_ts = np.dot(dx_t, du_s)
-            e_tt = np.dot(dx_t, du_t)
-
-            # e = np.array([[e_rr, e_rs, e_rt],
-            #               [e_sr, e_ss, e_st],
-            #               [e_tr, e_ts, e_tt]])
-
-            e = np.array([[e_rr, e_ss, 2 * e_st, 2 * e_rt, 2 * e_rs]])
-            print(e)
-
-        return e
         # x_Eia = self.x_Eia
         # U_Eia = U_o[self.o_Eia]
-        #
         # # coordinate transform to local
         # u_Eia = self.xU2u(U_Eia)
         # u_Eo = u_Eia.reshape(-1,6)
@@ -452,31 +447,56 @@ class TriXDomainMITC(XDomainFE):
 
     def map_field_to_F(self, sig_Es):
         print('map_field_to_F')
-        B_Eso, det_J_E = self.B_Eso
-        f_Eo = self.integ_factor * np.einsum(
-            'Eso,Es,E->Eo',
-            B_Eso, sig_Es, det_J_E / 2
-        )
-        f_Eic = f_Eo.reshape(-1,3,2)
-        # coordinate transform to global
-        f_Eic = self.xf2F(f_Eic)
-        _, n_i, n_c = f_Eic.shape
-        f_Ei = f_Eic.reshape(-1, n_i * n_c)
-        o_E = self.o_Eia.reshape(-1, n_i * n_c)
-        return o_E.flatten(), f_Ei.flatten()
 
+        B_Emabo, det_J_Fm = self.B_Emabo
+        B_Eabo = np.sum(B_Emabo, axis=1)
+        det_J_F = np.sum(det_J_Fm, axis=1)
+        f_Eo = self.integ_factor * np.einsum(
+            'Easo,Es,E->Eo',
+            B_Eabo, sig_Es, det_J_F / 2
+        )
+        # f_Eo = self.integ_factor * np.einsum(
+        #     'Emaso,Es,Em->Eo',
+        #     B_Emabo, sig_Es, det_J_Fm / 2
+        # )
+        o_Ei = self.o_Eia.reshape(-1, 3 * 5)
+        return o_Ei.flatten(), f_Eo.flatten()
+
+        # B_Eso, det_J_E = self.B_Eso
+        # f_Eo = self.integ_factor * np.einsum(
+        #     'Eso,Es,E->Eo',
+        #     B_Eso, sig_Es, det_J_E / 2
+        # )
+        # f_Eic = f_Eo.reshape(-1,3,2)
+        # # coordinate transform to global
+        # f_Eic = self.xf2F(f_Eic)
+        # _, n_i, n_c = f_Eic.shape
+        # f_Ei = f_Eic.reshape(-1, n_i * n_c)
+        # o_E = self.o_Eia.reshape(-1, n_i * n_c)
+        # return o_E.flatten(), f_Ei.flatten()
 
     def map_field_to_K(self, D_Est):
         print('map_field_to_K')
-        B_Eso, det_J_E = self.B_Eso
-        k2_ij = self.integ_factor * np.einsum('Eso,Est,Etp,E->Eop', B_Eso, D_Est, B_Eso, det_J_E / 2)
-        K_Eiejf = k2_ij.reshape(-1, 3, 2, 3, 2)
-        K_Eicjd = self.xk2K(K_Eiejf)
+        B_Emabo, det_J_Fm = self.B_Emabo
+        print('D_Est:', D_Est)
+        # D_Est = D_Est[:3, :3] # moved to MATSShellElastic
+        k2_Emop = self.integ_factor * np.einsum('Emabo, Est, Ematp, Em -> Emop', B_Emabo, D_Est, B_Emabo,
+                                                   det_J_Fm / 2)
+        k2_Eop = np.sum(k2_Emop, axis=1)
 
-        _, n_i, n_c, n_j, n_d = K_Eicjd.shape
-        K_Eij = K_Eicjd.reshape(-1, n_i * n_c, n_j * n_d)
-        o_Ei = self.o_Eia.reshape(-1, n_i * n_c)
-        return SysMtxArray(mtx_arr=K_Eij, dof_map_arr=o_Ei)
+        o_Ei = self.o_Eia.reshape(-1, 3 * 5)
+
+        return SysMtxArray(mtx_arr=k2_Eop, dof_map_arr=o_Ei)
+
+        # B_Eso, det_J_E = self.B_Eso
+        # k2_ij = self.integ_factor * np.einsum('Eso,Est,Etp,E->Eop', B_Eso, D_Est, B_Eso, det_J_E / 2)
+        # K_Eiejf = k2_ij.reshape(-1, 3, 2, 3, 2)
+        # K_Eicjd = self.xk2K(K_Eiejf)
+        #
+        # _, n_i, n_c, n_j, n_d = K_Eicjd.shape
+        # K_Eij = K_Eicjd.reshape(-1, n_i * n_c, n_j * n_d)
+        # o_Ei = self.o_Eia.reshape(-1, n_i * n_c)
+        # return SysMtxArray(mtx_arr=K_Eij, dof_map_arr=o_Ei)
 
 
     # =========================================================================

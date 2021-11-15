@@ -68,7 +68,10 @@ class FETS2DMITC(FETSEval):
                          0.1125
                          ], dtype='f')
 
-    t = tr.Float(1.0,
+    # TODO, different node thickness in each node according to the original
+    #  implementation can be easily integrated, but here the same thickness
+    #  is used for simplicity.
+    a = tr.Float(1.0,
                  label='thickness')
 
     n_m = tr.Int(14)
@@ -92,43 +95,43 @@ class FETS2DMITC(FETSEval):
         return np.array([1 - eta[:, 0] - eta[:, 1], eta[:, 0], eta[:, 1]],
                         dtype='f')
 
-    dN_imr = tr.Property(depends_on='eta_ip')
+    dh_imr = tr.Property(depends_on='eta_ip')
     r'''Derivatives of the shape functions in the integration points.
     '''
 
     @tr.cached_property
-    def _get_dN_imr(self):
+    def _get_dh_imr(self):
         # Same for all Gauss points
-        dN_ri = np.array([[-1, 1, 0],       # dh1/d_r, dh2/d_r, dh3/d_r
+        dh_ri = np.array([[-1, 1, 0],       # dh1/d_r, dh2/d_r, dh3/d_r
                            [-1, 0, 1],      # dh1/d_s, dh2/d_s, dh3/d_s
                            [0, 0, 0]],      # dh1/d_t, dh2/d_t, dh3/d_t
                           dtype=np.float_)
-        dN_mri = np.tile(dN_ri, (self.n_m, 1, 1))
+        dh_mri = np.tile(dh_ri, (self.n_m, 1, 1))
 
-        return np.einsum('mri->imr', dN_mri)
+        return np.einsum('mri->imr', dh_mri)
 
-    dNt_imr = tr.Property(depends_on='eta_ip')
+    dht_imr = tr.Property(depends_on='eta_ip')
     r'''Derivatives of the (shape functions * t) in the integration points.
     '''
 
     @tr.cached_property
-    def _get_dNt_imr(self):
+    def _get_dht_imr(self):
         # m: gauss points, r: r, s, t, and i: h1, h2, h3
         eta_ip = self.eta_ip
-        dN_mri = np.array([[[-t, t, 0],         # (t*dh1)/d_r, (t*dh2)/d_r, (t*dh3)/d_r
+        dh_mri = np.array([[[-t, t, 0],         # (t*dh1)/d_r, (t*dh2)/d_r, (t*dh3)/d_r
                             [-t, 0, t],         # (t*dh1)/d_s, (t*dh2)/d_s, (t*dh3)/d_s
                             [1 - r - s, r, s]]  # (t*dh1)/d_t, (t*dh2)/d_t, (t*dh3)/d_t
                            for r, s, t in zip(eta_ip[:, 0], eta_ip[:, 1], eta_ip[:, 2])],
                           dtype=np.float_)
-        return np.einsum('mri->imr', dN_mri)
+        return np.einsum('mri->imr', dh_mri)
 
-    dN_inr = tr.Property(depends_on='eta_ip')
+    dh_inr = tr.Property(depends_on='eta_ip')
     r'''Derivatives of the shape functions in the integration points.
     '''
 
     @tr.cached_property
-    def _get_dN_inr(self):
-        return self.dN_imr
+    def _get_dh_inr(self):
+        return self.dh_imr
 
     def get_B(self):
         pass
