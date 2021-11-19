@@ -12,4 +12,4 @@ from bmcs_shell.folding.geometry.wb_cell_5p import WBElemSymb5ParamXL
 from bmcs_shell.folding.geometry.wb_tessellation import WBTessellation
 from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
-
+from bmcs_shell.folding.geometry.wb_numerical_tessellation import WBNumericalTessellation
