@@ -225,7 +225,7 @@ class TriXDomainFE(XDomainFE):
         U_Eia = U_o[self.o_Eia]
         # coordinate transform to local
         u_Eia = self.xU2u(U_Eia)
-        u_Eo = u_Eia.reshape(-1,6)
+        u_Eo = u_Eia.reshape(-1, 6)
         B_Eso, _ = self.B_Eso
         eps_Eso = np.einsum(
             'Eso,Eo->Es',
@@ -235,6 +235,8 @@ class TriXDomainFE(XDomainFE):
         return eps_Eso
 
     def map_field_to_F(self, sig_Es):
+        # print('map_field_to_F:')
+        # print('sig_Es:', sig_Es)
         B_Eso, det_J_E = self.B_Eso
         f_Eo = self.integ_factor * np.einsum(
             'Eso,Es,E->Eo',
@@ -250,6 +252,7 @@ class TriXDomainFE(XDomainFE):
 
 
     def map_field_to_K(self, D_Est):
+        # print('map_field_to_K:')
         #==========================================================================
         B_Eso, det_J_E = self.B_Eso
         k2_ij = self.integ_factor * np.einsum('Eso,Est,Etp,E->Eop', B_Eso, D_Est, B_Eso, det_J_E / 2)
@@ -259,6 +262,8 @@ class TriXDomainFE(XDomainFE):
         _, n_i, n_c, n_j, n_d = K_Eicjd.shape
         K_Eij = K_Eicjd.reshape(-1, n_i * n_c, n_j * n_d)
         o_Ei = self.o_Eia.reshape(-1, n_i * n_c)
+        # print('K_Eij:', K_Eij)
+        # print('o_Ei:', o_Ei)
         return SysMtxArray(mtx_arr=K_Eij, dof_map_arr=o_Ei)
 
 

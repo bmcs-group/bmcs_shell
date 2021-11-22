@@ -10,10 +10,12 @@ class BoundaryConditions(bu.Model):
     name = 'BoundaryConditions'
     plot_backend = 'k3d'
 
+    n_nodal_dofs = 5
+
     geo = bu.Instance(WBShellGeometry, ())
 
-    bc_input = bu.Str(r'0, 0, 0')
-    f_input = bu.Str(r',, -20000')
+    bc_input = bu.Str(r'0, 0, 0,,')
+    f_input = bu.Str(r',, -20000,,')
     add_bc_btn = bu.Button()
     add_bc_btn_editor = bu.ButtonEditor(icon='plus')
     add_force_btn = bu.Button()
@@ -25,8 +27,8 @@ class BoundaryConditions(bu.Model):
     force_node_3d_obj_map = {}
     pb = tr.Any(desc='Plot backend')
 
-    _bc_fixed = bu.Array(BC=True) # [[node_idx, bc_x, bc_y, bc_z]]
-    _bc_loaded = bu.Array(BC=True) # [[node_idx, f_x, f_y, f_z]]
+    _bc_fixed = bu.Array(BC=True) # [[node_idx, bc_x, bc_y, bc_z...]]
+    _bc_loaded = bu.Array(BC=True) # [[node_idx, f_x, f_y, f_z...]]
 
     @tr.observe('add_bc_btn')
     def add_bc_click(self, event=None):
@@ -147,21 +149,25 @@ class BoundaryConditions(bu.Model):
 
     def _parse_text_to_xyz(self, text):
         try:
-            x, y, z = np.nan, np.nan, np.nan
+            dofs_values = np.empty(self.n_nodal_dofs) * np.nan
 
             text = text.replace(' ', '')
             commas_idxs = [i for i, char_ in enumerate(text) if char_ == ',']
 
-            x_str = text[0:commas_idxs[0]]
-            if x_str:
-                x = float(x_str)
-            y_str = text[commas_idxs[0] + 1:commas_idxs[1]]
-            if y_str:
-                y = float(y_str)
-            z_str = text[commas_idxs[1] + 1:]
-            if z_str:
-                z = float(z_str)
-            return x, y, z
+            if len(commas_idxs) != self.n_nodal_dofs - 1:
+                raise ValueError('Num of commas in BC input box should be (dofs per node -1)!')
+
+            start_idx = 0
+            for i, commas_idx in enumerate(commas_idxs):
+                dof_value_txt = text[start_idx:commas_idx]
+                if dof_value_txt:
+                    dofs_values[i] = float(dof_value_txt)
+                start_idx = commas_idx + 1
+                if i == len(commas_idxs) - 1:
+                    dof_value_txt = text[start_idx:]
+                    if dof_value_txt:
+                        dofs_values[i + 1] = float(dof_value_txt)
+            return dofs_values
         except:
             raise ValueError('An invalid value has been provided in bc text box!')
 
@@ -174,25 +180,27 @@ class BoundaryConditions(bu.Model):
         self._bc_fixed = self._bc_fixed[self._bc_fixed[:, 0] != idx]
 
     def _add_bc(self, idx):
-        x, y, z = self._parse_text_to_xyz(self.bc_input)
-        if (x, y, z) == (np.nan, np.nan, np.nan):
+        dofs_values = self._parse_text_to_xyz(self.bc_input)
+        dofs_nans = np.empty_like(dofs_values) * np.nan
+        if (dofs_values == dofs_nans).all():
             # bc should not be added, empty field!
             return False
         if self._bc_fixed.size == 0:
-            self._bc_fixed = np.array([[idx, x, y, z]])
+            self._bc_fixed = np.array([[idx, *dofs_values]])
         else:
-            self._bc_fixed = np.append(self._bc_fixed, [[idx, x, y, z]], axis=0)
+            self._bc_fixed = np.append(self._bc_fixed, [[idx, *dofs_values]], axis=0)
         return True
 
     def _add_force(self, idx):
-        x, y, z = self._parse_text_to_xyz(self.f_input)
-        if (x, y, z) == (np.nan, np.nan, np.nan):
+        dofs_values = self._parse_text_to_xyz(self.f_input)
+        dofs_nans = np.empty_like(dofs_values) * np.nan
+        if (dofs_values == dofs_nans).all():
             # bc should not be added, empty field!
             return False
         if self._bc_loaded.size == 0:
-            self._bc_loaded = np.array([[idx, x, y, z]])
+            self._bc_loaded = np.array([[idx, *dofs_values]])
         else:
-            self._bc_loaded = np.append(self._bc_loaded, [[idx, x, y, z]], axis=0)
+            self._bc_loaded = np.append(self._bc_loaded, [[idx, *dofs_values]], axis=0)
         return True
 
     bc_loaded_method = bu.Str('manual')
@@ -221,25 +229,22 @@ class BoundaryConditions(bu.Model):
     bc_fixed = tr.Property(depends_on="state_changed")
     # @tr.cached_property
     def _get_bc_fixed(self):
-        # This whole method can be moved to BoundaryConditions
         if self.bc_fixed_method == 'automatic':
             return self._get_bc_fixed_automatic()
         elif self.bc_fixed_method == 'manual':
             return self._get_dofs(self._bc_fixed, 'u')
 
-
     def _get_dofs(self, bc_or_f_array, type):
         if bc_or_f_array.size == 0:
-            return np.array([]), np.array([]), np.array([])
+            return [], np.array([]), np.array([])
 
         """ Note: Naming is for bc but it works also for forces """
-        dofs_per_node = 3
-        # Note: bcs.bc_fixed gives nodes idicies in geo which are the same in mesh so no mapping is needed!
+        # Note: bcs.bc_fixed gives nodes indices in geo which are the same in mesh so no mapping is needed!
         bcs_N_ = np.copy(bc_or_f_array)  # [[node_idx, bc_x, bc_y, bc_z], ...]
         fixed_nodes_N = np.copy(bcs_N_[:, 0])
 
         unfiltered_dofs_Nd = bcs_N_[:, 0]
-        unfiltered_dofs_Nd = unfiltered_dofs_Nd[:, np.newaxis] * dofs_per_node + np.arange(dofs_per_node)[np.newaxis, :]
+        unfiltered_dofs_Nd = unfiltered_dofs_Nd[:, np.newaxis] * self.n_nodal_dofs + np.arange(self.n_nodal_dofs)[np.newaxis, :]
         np.zeros_like(bcs_N_[:, 1:])
         unfiltered_dofs_N_ = np.zeros_like(bcs_N_)
         unfiltered_dofs_N_[:, 1:] = unfiltered_dofs_Nd

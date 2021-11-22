@@ -1,5 +1,7 @@
 import k3d
 import numpy as np
+
+from bmcs_shell.folding.analysis.fem.tri_xdomain_fe_mitc import TriXDomainMITC
 from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
 import bmcs_utils.api as bu
@@ -7,6 +9,8 @@ import traits.api as tr
 from ibvpy.bcond import BCDof
 from bmcs_shell.folding.analysis.fem.tri_xdomain_fe import TriXDomainFE
 from bmcs_shell.folding.analysis.fem.bc import BoundaryConditions
+from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
+from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
 from bmcs_shell.folding.analysis.wb_fe_triangular_mesh import WBShellFETriangularMesh
 
@@ -41,11 +45,12 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     geo = bu.Instance(WBShellGeometry, ())
 
-    tmodel = bu.Instance(MATS2DElastic, ())
+    # tmodel = bu.Instance(MATS2DElastic, ())
+    tmodel = bu.Instance(MATSShellElastic, ())
 
     bcs = bu.Instance(BoundaryConditions)
     def _bcs_default(self):
-        return BoundaryConditions(geo=self.geo)
+        return BoundaryConditions(geo=self.geo, n_nodal_dofs=self.xdomain.fets.n_nodal_dofs)
 
     xdomain = tr.Property(tr.Instance(TriXDomainFE),
                           depends_on="state_changed")
@@ -53,13 +58,19 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     @tr.cached_property
     def _get_xdomain(self):
-        # prepare the mesh generator
-        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=False, subdivision=2)
+        # # prepare the mesh generator
+        # # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=False, subdivision=2)
+        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
+        # # construct the domain with the kinematic strain mapper and stress integrator
+        # return TriXDomainFE(
+        #     mesh=mesh,
+        #     integ_factor=self.h,
+        # )
+
         mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
-        # construct the domain with the kinematic strain mapper and stress integrator
-        return TriXDomainFE(
-            mesh=mesh,
-            integ_factor=self.h,
+        mesh.fets = FETS2DMITC(a= self.h)
+        return TriXDomainMITC(
+            mesh=mesh
         )
 
     domains = tr.Property(depends_on="state_changed")
@@ -120,10 +131,14 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         X_Id = self.xdomain.mesh.X_Id
         if len(self.hist.U_t) == 0:
             U_1 = np.zeros_like(X_Id)
+            print('analysis: U_I', )
         else:
             U_1 = self.hist.U_t[-1]
-        X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
+            U_1 = U_1.reshape(-1, self.xdomain.fets.n_nodal_dofs)[:, :3]
+
+        X1_Id = X_Id + U_1
         X1_Id = X1_Id.astype(np.float32)
+
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
 
         # Original state mesh
@@ -138,7 +153,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         wb_mesh_1 = k3d.mesh(X1_Id,
                              I_Ei,
                              color_map=k3d.colormaps.basic_color_maps.Jet,
-                             attribute=U_1.reshape(-1, 3)[:, 2],
+                             attribute=U_1[:, 2],
                              color_range=[np.min(U_1), np.max(U_1)],
                              side='double')
         pb.plot_fig += wb_mesh_1
@@ -154,13 +169,15 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     def update_plot(self, pb):
         X_Id = self.xdomain.mesh.X_Id
-        print('analysis: update_plot', len(X_Id))
+        print('analysis: update_plot')
         if len(self.hist.U_t) == 0:
             U_1 = np.zeros_like(X_Id)
             print('analysis: U_I', )
         else:
             U_1 = self.hist.U_t[-1]
-        X1_Id = X_Id + (U_1.reshape(-1, 3) * 1)
+            U_1 = U_1.reshape(-1, self.xdomain.fets.n_nodal_dofs)[:, :3]
+
+        X1_Id = X_Id + U_1
         X1_Id = X1_Id.astype(np.float32)
 
         I_Ei = self.xdomain.I_Ei.astype(np.uint32)
@@ -168,7 +185,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         mesh = pb.objects['wb_mesh_1']
         mesh.vertices = X1_Id
         mesh.indices = I_Ei
-        mesh.attributes = U_1.reshape(-1, 3)[:, 2]
+        mesh.attribute = U_1[:, 2]
         mesh.color_range = [np.min(U_1), np.max(U_1)]
         if self.show_wireframe:
             wireframe = pb.objects['mesh_wireframe']

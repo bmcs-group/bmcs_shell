@@ -22,7 +22,7 @@ class WBShellFETriangularMesh(FETriangularMesh):
 
     direct_mesh = bu.Bool(False, DSC=True)
 
-    subdivision = bu.Float(10, DSC=True)
+    subdivision = bu.Float(3, DSC=True)
 
     # Will be used in the parent class. Should be here to catch GEO dependency
     show_wireframe = bu.Bool(True, GEO=True)
