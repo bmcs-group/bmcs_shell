@@ -1,13 +1,13 @@
 import bmcs_utils.api as bu
-from bmcs_shell.folding.geometry.wb_cell_5p import \
-    WBElem5Param
+from bmcs_shell.folding.geometry.wb_cell_5p_v2 import \
+    WBElem5ParamV2
 import traits.api as tr
 import numpy as np
 from scipy.optimize import minimize
 import k3d
 import random
 
-class WBNumericalTessellation(WBElem5Param):
+class WBNumericalTessellation(WBElem5ParamV2):
     name = 'WB Numerical Tessellation'
 
     # wb_cell = tr.Instance(WBElem5Param, ())
@@ -41,7 +41,7 @@ class WBNumericalTessellation(WBElem5Param):
         return self.get_cell_matching_v1_to_v2(self.X_Ia, np.array([6, 2]), np.array([3, 5]))
 
     ipw_view = bu.View(
-        *WBElem5Param.ipw_view.content,
+        *WBElem5ParamV2.ipw_view.content,
         bu.Item('n_x', latex=r'n_x'),
         bu.Item('n_y', latex=r'n_y'),
         bu.Item('rot_br', latex=r'rot~br', editor=bu.FloatRangeEditor(low=0, high=2 * np.pi, n_steps=150,

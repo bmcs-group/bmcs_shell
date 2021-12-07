@@ -27,8 +27,8 @@ class BoundaryConditions(bu.Model):
     force_node_3d_obj_map = {}
     pb = tr.Any(desc='Plot backend')
 
-    _bc_fixed = bu.Array(BC=True) # [[node_idx, bc_x, bc_y, bc_z...]]
-    _bc_loaded = bu.Array(BC=True) # [[node_idx, f_x, f_y, f_z...]]
+    bc_fixed_array = bu.Array(BC=True) # [[node_idx, bc_x, bc_y, bc_z...]]
+    bc_loaded_array = bu.Array(BC=True) # [[node_idx, f_x, f_y, f_z...]]
 
     @tr.observe('add_bc_btn')
     def add_bc_click(self, event=None):
@@ -173,11 +173,11 @@ class BoundaryConditions(bu.Model):
 
     def _remove_force(self, idx):
         # Remove the row corresponding to idx
-        self._bc_loaded = self._bc_loaded[self._bc_loaded[:, 0] != idx]
+        self.bc_loaded_array = self.bc_loaded_array[self.bc_loaded_array[:, 0] != idx]
 
     def _remove_bc(self, idx):
         # Remove the row corresponding to idx
-        self._bc_fixed = self._bc_fixed[self._bc_fixed[:, 0] != idx]
+        self.bc_fixed_array = self.bc_fixed_array[self.bc_fixed_array[:, 0] != idx]
 
     def _add_bc(self, idx):
         dofs_values = self._parse_text_to_xyz(self.bc_input)
@@ -185,10 +185,10 @@ class BoundaryConditions(bu.Model):
         if (dofs_values == dofs_nans).all():
             # bc should not be added, empty field!
             return False
-        if self._bc_fixed.size == 0:
-            self._bc_fixed = np.array([[idx, *dofs_values]])
+        if self.bc_fixed_array.size == 0:
+            self.bc_fixed_array = np.array([[idx, *dofs_values]])
         else:
-            self._bc_fixed = np.append(self._bc_fixed, [[idx, *dofs_values]], axis=0)
+            self.bc_fixed_array = np.append(self.bc_fixed_array, [[idx, *dofs_values]], axis=0)
         return True
 
     def _add_force(self, idx):
@@ -197,10 +197,10 @@ class BoundaryConditions(bu.Model):
         if (dofs_values == dofs_nans).all():
             # bc should not be added, empty field!
             return False
-        if self._bc_loaded.size == 0:
-            self._bc_loaded = np.array([[idx, *dofs_values]])
+        if self.bc_loaded_array.size == 0:
+            self.bc_loaded_array = np.array([[idx, *dofs_values]])
         else:
-            self._bc_loaded = np.append(self._bc_loaded, [[idx, *dofs_values]], axis=0)
+            self.bc_loaded_array = np.append(self.bc_loaded_array, [[idx, *dofs_values]], axis=0)
         return True
 
     bc_loaded_method = bu.Str('manual')
@@ -212,7 +212,7 @@ class BoundaryConditions(bu.Model):
         if self.bc_loaded_method == 'automatic':
             return self._get_bc_loaded_automatic()
         elif self.bc_loaded_method == 'manual':
-            return self._get_dofs(self._bc_loaded, 'f')
+            return self._get_dofs(self.bc_loaded_array, 'f')
 
     def _get_bc_loaded_automatic(self):
         F = bu.Float(-1000, BC=True)
@@ -232,7 +232,7 @@ class BoundaryConditions(bu.Model):
         if self.bc_fixed_method == 'automatic':
             return self._get_bc_fixed_automatic()
         elif self.bc_fixed_method == 'manual':
-            return self._get_dofs(self._bc_fixed, 'u')
+            return self._get_dofs(self.bc_fixed_array, 'u')
 
     def _get_dofs(self, bc_or_f_array, type):
         if bc_or_f_array.size == 0:

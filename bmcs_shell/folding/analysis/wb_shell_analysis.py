@@ -8,7 +8,7 @@ import bmcs_utils.api as bu
 import traits.api as tr
 from ibvpy.bcond import BCDof
 from bmcs_shell.folding.analysis.fem.tri_xdomain_fe import TriXDomainFE
-from bmcs_shell.folding.analysis.fem.bc import BoundaryConditions
+from bmcs_shell.folding.analysis.fem.bcs import BoundaryConditions
 from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
