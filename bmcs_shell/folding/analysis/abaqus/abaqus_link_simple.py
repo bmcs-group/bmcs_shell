@@ -17,32 +17,53 @@ class AbaqusLink(HasTraits):
 
     def _get_nodes(self):
         # return np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-        return self.shell_analysis.geo.X_Ia
+        return self.shell_analysis.xdomain.mesh.X_Id
 
     facets = Property
 
     def _get_facets(self):
         # return np.array([[0, 1, 2]])
-        return self.shell_analysis.geo.I_Fi
+        return self.shell_analysis.xdomain.mesh.I_Fi
 
     bc_fixed = Property
     def _get_bc_fixed(self):
+        """
+        :return: [[node_idx, bc_x, bc_y, bc_z...]]
+        """
         return self.shell_analysis.bcs.bc_fixed_array
 
     bc_loaded = Property
     def _get_bc_loaded(self):
+        """
+        :return: [[node_idx, f_x, f_y, f_z...]]
+        """
         return self.shell_analysis.bcs.bc_loaded_array
+
+    thickness = Property
+    def _get_thickness(self):
+        return self.shell_analysis.h
+
+    nu = Property
+    def _get_nu(self):
+        return self.shell_analysis.tmodel.nu
+
+    E = Property
+    def _get_nu(self):
+        return self.shell_analysis.tmodel.E
+
     # -------------------------------------------------------------------------
     # Data for model building
     # -------------------------------------------------------------------------
     element_type = Str('S3R')
     model_name = Str('Model-1')
     material_name = Str('concrete')
-    materials = Dict({"concrete": [3.0e10, 0.2, 2500],  # [Young's modulus in N/m3, poissions ratio, density in kg/m3]
-                      "steel": [21.0e10, 0.3, 7880]})
-    thickness = Float(0.06)  # Thickness in meter
-    # bounded_nodes = Array(np.int, value=[1, 2, 3, 13, 14, 15])
-    bounded_nodes = Array(np.int, value=[0, 2])
+
+    materials = Property(Str)
+
+    @cached_property
+    def _get_materials(self):
+        return Dict({"concrete": [self.E, self.nu, 2500.0e-12],  # [Young's modulus in N/mm^2, poissions ratio, density in tonne/mm3 (SI-mm units)]
+                      "steel": [2.1e5, 0.3, 7880.0e-12]})
 
     _inp_head = Property(Str, depends_on='model_name')
 
@@ -98,16 +119,31 @@ class AbaqusLink(HasTraits):
         """
         Sets of the input file.
         """
-        set_str = '*Nset, nset=nodes, instance=Part-A, generate\n 1,\t %i,\t 1\n\
-*Elset, elset=Struc, instance=Part-A, generate\n 1,\t %i,\t 1\n\
-*Elset, elset=_Surf-1_SNEG,  internal, instance=Part-A, generate\n 1,\t %i,\t 1\n' % (
-            len(self.nodes), len(self.facets), len(self.facets))
-        set_str += '*Nset, nset=boundery, instance=Part-A\n'
-        for i in self.bounded_nodes:
-            print(i)
-            set_str += '%i, ' % (i)
-        set_str += '\n'
+        set_str = '*Nset, nset=nodes, instance=Part-A, generate\n 1,\t {},\t 1\n'.format(len(self.nodes))
+        set_str += '*Elset, elset=Struc, instance=Part-A, generate\n 1,\t {},\t 1\n'.format(len(self.facets))
+        set_str += '*Elset, elset=_Surf-1_SNEG,  internal, instance=Part-A, generate\n 1,\t {},\t 1\n'.format(
+            len(self.facets))
+
+        bc_sets_names = self.bc_sets_names
+        for i, node_bc in enumerate(self.bc_fixed):
+            node_id = int(node_bc[0]) + 1
+            set_str += '*Nset, nset={}, instance=Part-A\n'.format(bc_sets_names[i])
+            set_str += '{}\n'.format(node_id)
+
+        load_sets_names = self.load_sets_names
+        for i, node_load in enumerate(self.bc_loaded):
+            node_id = int(node_load[0]) + 1
+            set_str += '*Nset, nset={}, instance=Part-A\n'.format(load_sets_names[i])
+            set_str += '{}\n'.format(node_id)
         return set_str
+
+    bc_sets_names = Property
+    def _get_bc_sets_names(self):
+        return ['BC-Node-{}'.format(int(node_id) + 1) for node_id in self.bc_fixed[:, 0]]
+
+    load_sets_names = Property
+    def _get_load_sets_names(self):
+        return ['Load-Node-{}'.format(int(node_id) + 1) for node_id in self.bc_loaded[:, 0]]
 
     _inp_section = Property(Str, depends_on='thickness, material_name')
 
@@ -116,10 +152,10 @@ class AbaqusLink(HasTraits):
         """
         Sections of the input file.
         """
-        section = "** Section: Section-1\n\
-*Shell Section, elset=Struc, material="
+        section = '** Section: Section-1\n'
+        section += '*Shell Section, elset=Struc, material='
         section += self.material_name + '\n'
-        section += '%f \n' % (self.thickness)
+        section += '%f \n' % self.thickness
         return section
 
     _inp_part = Property(
@@ -144,8 +180,8 @@ class AbaqusLink(HasTraits):
         """
         Instance of the input file.
         """
-        instance = '*Instance, NAME=PART-A, PART=Part-1\n\
-*End Instance\n'
+        instance = '*Instance, NAME=PART-A, PART=Part-1\n'
+        instance += '*End Instance\n'
         return instance
 
     _inp_surface = Property(Str)
@@ -155,8 +191,8 @@ class AbaqusLink(HasTraits):
         """
         Surfaces of the input file.
         """
-        surf = '*Surface, type=ELEMENT, name=Surf-1\n\
-_Surf-1_SNEG, SNEG\n'
+        surf = '*Surface, type=ELEMENT, name=Surf-1\n'
+        surf += '_Surf-1_SNEG, SNEG\n'
         return surf
 
     _inp_material = Property(Str, depends_on='material_name')
@@ -166,16 +202,15 @@ _Surf-1_SNEG, SNEG\n'
         """
         Materials of the input file.
         """
-        material = '**\n\
-** MATERIALS\n\
-** \n\
-*Material, name='
+        material = '**\n'
+        material += '** MATERIALS\n'
+        material += '** \n'
+        material += '*Material, name='
         material += self.material_name + '\n'
         material += '*Elastic\n'
         mat_values = self.materials[self.material_name]
         material += '%f,\t %f \n' % (mat_values[0], mat_values[1])
         material += '**\n *DENSITY\n %f\n' % (mat_values[2])
-        material += '** ----------------------------------------------------------------\n'
         return material
 
     _inp_assembly = Property(Str, depends_on='nodes, facets')
@@ -196,29 +231,20 @@ _Surf-1_SNEG, SNEG\n'
 
     @cached_property
     def _get__inp_boundary_conditions(self):
-        bcs_header = '** BOUNDARY CONDITIONS\n** \n'
-        bcs_footer = '** \n'
+        bc_txt = '** BOUNDARY CONDITIONS\n'
+        bc_txt += '** \n'
 
-        bc_txt = ''
+        bc_sets_names = self.bc_sets_names
         for i, node_bc in enumerate(self.bc_fixed):
-            bc_txt += '** Name: BC-' + str(i + 1) + ' Type: Displacement/Rotation\n\
-*Boundary\n'
+            bc_txt += '** Name: BC-{} Type: Displacement/Rotation\n'.format(i + 1)
+            bc_txt += '*Boundary\n'
             for bc_idx, bc_value in enumerate(node_bc[1:]):
-                if np.isnan(bc_value):
-                    continue
-                node_idx = int(node_bc[0])
-                bc_txt += str(node_idx + 1) + ', ' + (str(bc_idx + 1) + ', ' + str(bc_idx + 1) + ', ' + str(bc_value)) + '\n'
+                bc_id = bc_idx + 1
+                if not np.isnan(bc_value):
+                    bc_txt += '{}, {}, {}, {}\n'.format(bc_sets_names[i], bc_id, bc_id, bc_value)
 
-        return bcs_header + bc_txt + bcs_footer
-#         bcs = '** BOUNDARY CONDITIONS\n\
-# ** \n\
-# ** Name: BC-1 Type: Displacement/Rotation\n\
-# *Boundary\n\
-# Set-4, 1, 1, 5.\n\
-# ** Name: BC-2 Type: Displacement/Rotation\n\
-# *Boundary\n\
-# Set-5, 1, 1\n\
-# **'
+        bc_txt += '** \n'
+        return bc_txt
 
     _inp_loadcases = Property(Str)
 
@@ -227,74 +253,96 @@ _Surf-1_SNEG, SNEG\n'
         """
         Loadcases of the input file.
         """
-        load = '**\n\
-** STEP: Step-1\n\
-** \n\
-*Step, name=Step-1\n\
-*Static\n\
-0.1, 1., 1e-05, 0.1\n\
-**\n\
-** \n' + self._inp_boundary_conditions + '** LOADS\n\
-** \n\
-** Name: Load-1   Type: Pressure\n\
-*DLOAD\n\
-Struc, GRAV, 9.81, 0.0, 0.0, -1.0\n'
+        load = '** LOADS\n'
+        load += '** \n'
+
+        # load += '** Name: Load-1   Type: Pressure\n'
+        # load += '*DLOAD\n'
+        # load += 'Struc, GRAV, 9810, 0.0, 0.0, -1.0\n**\n' # 9810 is Gravity in mm/s^2'
+
+        # Concentrated forces
+        load = self._add_loads(load, moment = False)
+
+        # Moments
+        load = self._add_loads(load, moment = True)
+
+        load += '** \n'
         return load
 
-    _inp_output = Property(Str)
+    def _add_loads(self, load_str, moment):
+        load_sets_names = self.load_sets_names
+        for i, node_load in enumerate(self.bc_loaded):
+            load_str += '** Name: Load-{} Type: {}\n'.format(i + 1, 'Moment' if moment else 'Concentrated force')
+            load_str += '*Cload\n'
+            node_load_range = node_load[4:] if moment else node_load[1:4]
+            for load_idx, load_value in enumerate(node_load_range):
+                load_id = load_idx + 4 if moment else load_idx + 1
+                if not np.isnan(load_value):
+                    load_str += '{}, {}, {}\n'.format(load_sets_names[i], load_id, load_value)
+        return load_str
+
+    _inp_output_requests = Property(Str)
 
     @cached_property
-    def _get__inp_output(self):
+    def _get__inp_output_requests(self):
         """
         Output of the input file.
         """
-        out = '**\n\
-** OUTPUT REQUESTS\n\
-** \n\
-*Restart, write, frequency=0\n\
-** \n\
-** FIELD OUTPUT: F-Output-1\n\
-** \n\
-*Output, field\n\
-#*Node Output\n\
-#CF, RF, U\n\
-#*Element Output\n\
-#ALPHA, ALPHAN, CS11, CTSHR, MISES, MISESMAX, MISESONLY, PRESSONLY, PS, S, SF, SM, SSAVG, TRIAX, TSHR, VS\n\
-*Output, field, frequency=0\n\
-**\n\
-** HISTORY OUTPUT: H-Output-1\n\
-** \n\
-*Output, history, variable=PRESELECT\n\
-*NODE PRINT\n\
-U,\n\
-RF,\n\
-*EL PRINT\n\
-S,\n\
-*End Step'
+        out = '**\n'
+        out += '** OUTPUT REQUESTS\n'
+        out += '** \n'
+        out += '*Restart, write, frequency=0\n'
+        out += '** \n'
+        out += '** FIELD OUTPUT: F-Output-1\n'
+        out += '** \n'
+        out += '*Output, field, variable=PRESELECT\n'
+        out += '**Output, field\n'
+        out += '**Node Output\n'
+        out += '**CF, RF, U\n'
+        out += '**Element Output\n'
+        out += '**ALPHA, ALPHAN, CS11, CTSHR, MISES, MISESMAX, MISESONLY, PRESSONLY, PS, S, SF, SM, SSAVG, TRIAX, TSHR, VS\n'
+        out += '*Output, field, frequency=0\n'
+        out += '**\n'
+        out += '** HISTORY OUTPUT: H-Output-1\n'
+        out += '** \n'
+        out += '*Output, history, variable=PRESELECT\n'
+        out += '**NODE PRINT\n'
+        out += '**U,\n'
+        out += '**RF,\n'
+        out += '**EL PRINT\n'
+        out += '**S,\n'
         return out
 
-    def build_inp(self):
-        # Data head
-        head = self._inp_head
-        # part
-        part = self._inp_part
-        # Assembly
-        assembly = self._inp_assembly
-        # Material
-        material = self._inp_material
-        # Data bottom
-        loadcases = self._inp_loadcases
-        output = self._inp_output
+    _inp_step_header = Property(Str)
+    @cached_property
+    def _get__inp_step_header(self):
+        step_header = '** ----------------------------------------------------------------\n'
+        step_header += '**\n'
+        step_header += '** STEP: Step-1\n'
+        step_header += '** \n'
+        step_header += '*Step, name=Step-1\n'
+        step_header += '*Static\n'
+        step_header += '0.1, 1., 1e-05, 0.1\n'
+        step_header += '**\n'
+        return step_header
 
+    _inp_step_footer = Property(Str)
+    @cached_property
+    def _get__inp_step_footer(self):
+        return '*End Step\n'
+
+    def build_inp(self):
         fname = self.model_name + '.inp'
         inp_file = open(fname, 'w')
-        inp_file.write(head)
-        inp_file.write(part)
-        inp_file.write(assembly)
-        inp_file.write(material)
-        inp_file.write(loadcases)
-        inp_file.write(output)
-
+        inp_file.write(self._inp_head)
+        inp_file.write(self._inp_part)
+        inp_file.write(self._inp_assembly)
+        inp_file.write(self._inp_material)
+        inp_file.write(self._inp_step_header)
+        inp_file.write(self._inp_boundary_conditions)
+        inp_file.write(self._inp_loadcases)
+        inp_file.write(self._inp_output_requests)
+        inp_file.write(self._inp_step_footer)
         inp_file.close()
         print('inp file %s written' % fname)
 

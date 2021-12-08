@@ -13,6 +13,7 @@ from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
 from bmcs_shell.folding.analysis.wb_fe_triangular_mesh import WBShellFETriangularMesh
+import  os
 
 itags_str = '+GEO,+MAT,+BC'
 
@@ -20,6 +21,9 @@ itags_str = '+GEO,+MAT,+BC'
 class WBShellAnalysis(TStepBC, bu.InteractiveModel):
     name = 'WBShellAnalysis'
     plot_backend = 'k3d'
+    id = bu.Str
+    """ if you saved boundary conditions for your current analysis, this id will make sure these bcs
+     are loaded automatically next time you create an instance with the same id """
 
     h = bu.Float(10, GEO=True)
     show_wireframe = bu.Bool(True, GEO=True)
@@ -45,12 +49,12 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     geo = bu.Instance(WBShellGeometry, ())
 
-    # tmodel = bu.Instance(MATS2DElastic, ())
-    tmodel = bu.Instance(MATSShellElastic, ())
+    tmodel = bu.Instance(MATS2DElastic, ())
+    # tmodel = bu.Instance(MATSShellElastic, ())
 
     bcs = bu.Instance(BoundaryConditions)
     def _bcs_default(self):
-        return BoundaryConditions(geo=self.geo, n_nodal_dofs=self.xdomain.fets.n_nodal_dofs)
+        return BoundaryConditions(geo=self.geo, n_nodal_dofs=self.xdomain.fets.n_nodal_dofs, id=self.id)
 
     xdomain = tr.Property(tr.Instance(TriXDomainFE),
                           depends_on="state_changed")
@@ -58,20 +62,20 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     @tr.cached_property
     def _get_xdomain(self):
-        # # prepare the mesh generator
-        # # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=False, subdivision=2)
-        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
-        # # construct the domain with the kinematic strain mapper and stress integrator
-        # return TriXDomainFE(
-        #     mesh=mesh,
-        #     integ_factor=self.h,
-        # )
-
+        # prepare the mesh generator
+        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=False, subdivision=2)
         mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
-        mesh.fets = FETS2DMITC(a= self.h)
-        return TriXDomainMITC(
-            mesh=mesh
+        # construct the domain with the kinematic strain mapper and stress integrator
+        return TriXDomainFE(
+            mesh=mesh,
+            integ_factor=self.h,
         )
+
+        # mesh = WBShellFETriangularMesh(geo=self.geo, direct_mesh=True)
+        # mesh.fets = FETS2DMITC(a= self.h)
+        # return TriXDomainMITC(
+        #     mesh=mesh
+        # )
 
     domains = tr.Property(depends_on="state_changed")
 

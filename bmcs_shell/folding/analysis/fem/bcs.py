@@ -4,12 +4,13 @@ import numpy as np
 import traits.api as tr
 from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
 from ibvpy.bcond import BCDof
-
+import os
 
 class BoundaryConditions(bu.Model):
     name = 'BoundaryConditions'
     plot_backend = 'k3d'
 
+    id = bu.Str
     n_nodal_dofs = 5
 
     geo = bu.Instance(WBShellGeometry, ())
@@ -30,6 +31,16 @@ class BoundaryConditions(bu.Model):
     bc_fixed_array = bu.Array(BC=True) # [[node_idx, bc_x, bc_y, bc_z...]]
     bc_loaded_array = bu.Array(BC=True) # [[node_idx, f_x, f_y, f_z...]]
 
+    draw_points_pending_after_cache_load = bu.Bool
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        if os.path.isfile(self._get_bc_fixed_array_path(ext=True)):
+            self.bc_loaded_array = np.load(self._get_bc_loaded_array_path(ext=True))
+            self.bc_fixed_array = np.load(self._get_bc_fixed_array_path(ext=True))
+            self.draw_points_pending_after_cache_load = True
+            print('BCs were loaded from files: ' + self._get_bcs_id_cache_dir() + '_...')
+
     @tr.observe('add_bc_btn')
     def add_bc_click(self, event=None):
         self._switch_btn('add_bc_btn', self.add_bc_btn_editor, self.add_force_btn_editor)
@@ -37,6 +48,25 @@ class BoundaryConditions(bu.Model):
     @tr.observe('add_force_btn')
     def add_force_click(self, event=None):
         self._switch_btn('add_force_btn', self.add_force_btn_editor, self.add_bc_btn_editor)
+
+    @tr.observe('save_geo_and_bc')
+    def save_geo_and_bc_click(self, event=None):
+        np.save(self._get_bc_fixed_array_path(ext=False), self.bc_fixed_array)
+        np.save(self._get_bc_loaded_array_path(ext=False), self.bc_loaded_array)
+        print('BCs were saved successfully to files: ' + self._get_bcs_id_cache_dir() + '_...')
+
+    def _get_bc_fixed_array_path(self, ext=False):
+        return self._get_bcs_id_cache_dir() + '_bc_fixed_array' + ('.npy' if ext else '')
+
+    def _get_bc_loaded_array_path(self, ext=False):
+        return self._get_bcs_id_cache_dir() + '_bc_loaded_array' + ('.npy' if ext else '')
+
+    def _get_bcs_id_cache_dir(self):
+        cache_dir = bu.data_cache.dir
+        bcs_cache_dir = os.path.join(cache_dir, 'bcs')
+        if not os.path.exists(bcs_cache_dir):
+            os.makedirs(bcs_cache_dir)
+        return os.path.join(bcs_cache_dir, self.id)
 
     def _switch_btn(self, button_str, btn_editor, other_editor):
         if self.active_button == button_str:
@@ -78,6 +108,15 @@ class BoundaryConditions(bu.Model):
         for node_idx, _ in self.force_node_3d_obj_map.items():
             # Following will override the corresponding 3d_point in the map
             self._add_force_3d_point(node_idx, vertices[node_idx])
+
+        if self.draw_points_pending_after_cache_load:
+            for loaded_bc in self.bc_loaded_array:
+                idx = int(loaded_bc[0])
+                self._add_force_3d_point(idx, vertices[idx])
+            for fixed_bc in self.bc_fixed_array:
+                idx = int(fixed_bc[0])
+                self._add_bc_3d_point(idx, vertices[idx])
+            self.draw_points_pending_after_cache_load = False
 
         def mesh_click(params):
             """ (example) params = {'msg_type': 'hover_callback',
