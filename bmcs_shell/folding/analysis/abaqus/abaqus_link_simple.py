@@ -5,10 +5,6 @@ from traits.api import HasTraits, Property, cached_property, \
 import bmcs_shell.folding.analysis.abaqus.abaqus_shell_manager as asm
 import numpy as np
 
-from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
-from bmcs_shell.folding.analysis.wb_shell_analysis import WBShellAnalysis
-
-
 class AbaqusLink(HasTraits):
     # data source
     shell_analysis = WeakRef
@@ -48,7 +44,7 @@ class AbaqusLink(HasTraits):
         return self.shell_analysis.tmodel.nu
 
     E = Property
-    def _get_nu(self):
+    def _get_E(self):
         return self.shell_analysis.tmodel.E
 
     # -------------------------------------------------------------------------
@@ -58,12 +54,12 @@ class AbaqusLink(HasTraits):
     model_name = Str('Model-1')
     material_name = Str('concrete')
 
-    materials = Property(Str)
+    materials = Property()
 
     @cached_property
     def _get_materials(self):
-        return Dict({"concrete": [self.E, self.nu, 2500.0e-12],  # [Young's modulus in N/mm^2, poissions ratio, density in tonne/mm3 (SI-mm units)]
-                      "steel": [2.1e5, 0.3, 7880.0e-12]})
+        return {"concrete": [self.E, self.nu, 2500.0e-12],  # [Young's modulus in N/mm^2, poissions ratio, density in tonne/mm3 (SI-mm units)]
+                      "steel": [2.1e5, 0.3, 7880.0e-12]}
 
     _inp_head = Property(Str, depends_on='model_name')
 
@@ -209,8 +205,8 @@ class AbaqusLink(HasTraits):
         material += self.material_name + '\n'
         material += '*Elastic\n'
         mat_values = self.materials[self.material_name]
-        material += '%f,\t %f \n' % (mat_values[0], mat_values[1])
-        material += '**\n *DENSITY\n %f\n' % (mat_values[2])
+        material += '{},\t {} \n'.format(mat_values[0], mat_values[1])
+        material += '**\n *DENSITY\n {}\n'.format(mat_values[2])
         return material
 
     _inp_assembly = Property(Str, depends_on='nodes, facets')
@@ -366,6 +362,8 @@ class AbaqusLink(HasTraits):
 
 
 if __name__ == '__main__':
+    from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
+    from bmcs_shell.folding.analysis.wb_shell_analysis import WBShellAnalysis
 
     tmodel = MATSShellElastic(E=28000, nu=0.2)
     n_phi_plus = 2
@@ -375,8 +373,7 @@ if __name__ == '__main__':
                 n_phi_plus=n_phi_plus, n_x_plus=n_x_plus, show_nodes=False)
     wba.geo.trait_set(**data)
 
-
-    al = AbaqusLink(shell_analysis=wba, n_split=10)
+    al = AbaqusLink(shell_analysis=wba)
     al.model_name = 'test_name'
     al.build_inp()
     # al.abaqus_solve()

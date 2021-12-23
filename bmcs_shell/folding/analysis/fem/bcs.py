@@ -153,29 +153,6 @@ class BoundaryConditions(bu.Model):
     def update_plot(self, pb):
         self.geo.update_plot(pb)
 
-    # def _update_bc_fixed_3d_points(self):
-    #     _, fixed_nodes, _ = self.bc_fixed
-    #     if fixed_nodes.size == 0:
-    #         return
-    #
-    #     X_Ia = self.geo.X_Ia
-    #
-    #     X_Ma = X_Ia[fixed_nodes]
-    #
-    #     k3d_fixed_nodes = k3d.points(X_Ma, color=0x3b3b3b, point_size=100)
-    #     pb.plot_fig += k3d_fixed_nodes
-
-    # def _update_bc_loaded_3d_points(self):
-    #     _, loaded_nodes, _ = self.bc_loaded
-    #     if loaded_nodes.size == 0:
-    #         return
-    #
-    #     X_Ia = self.geo.X_Ia
-    #     X_Ma = X_Ia[loaded_nodes]
-    #
-    #     k3d_loaded_nodes = k3d.points(X_Ma, color=0xFF0000, point_size=100)
-    #     pb.plot_fig += k3d_loaded_nodes
-
     def _add_bc_3d_point(self, idx, point):
         k3d_point = k3d.points(point, point_size=100, color=0x3b3b3b)
         self.pb.plot_fig += k3d_point

@@ -1,6 +1,7 @@
 import k3d
 import numpy as np
 
+from bmcs_shell.folding.analysis.abaqus.abaqus_link_simple import AbaqusLink
 from bmcs_shell.folding.analysis.fem.tri_xdomain_fe_mitc import TriXDomainMITC
 from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from ibvpy.sim.tstep_bc import TStepBC
@@ -13,7 +14,6 @@ from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
 from bmcs_shell.folding.analysis.wb_fe_triangular_mesh import WBShellFETriangularMesh
-import  os
 
 itags_str = '+GEO,+MAT,+BC'
 
@@ -129,6 +129,11 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
         U_1 = self.hist.U_t[-1]
         U_max = np.max(np.fabs(U_1))
         return U_max
+
+    def export_abaqus(self):
+        al = AbaqusLink(shell_analysis=self)
+        al.model_name = 'test_name'
+        al.build_inp()
 
     def setup_plot(self, pb):
         print('analysis: setup_plot')

@@ -3,6 +3,7 @@
 """
 import bmcs_utils.api as bu
 import sympy as sp
+from bmcs_shell.folding.geometry.wb_cell import WBCell
 from sympy.algebras.quaternion import Quaternion
 import k3d
 import traits.api as tr
@@ -116,13 +117,13 @@ class WBElemSymb5ParamXL(bu.SymbExpr):
         ('P_3', ()),
     ]
 
-class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
+class WBElem5Param(WBCell, bu.InjectSymbExpr):
     name = 'waterbomb cell 5p'
     symb_class = WBElemSymb5ParamXL
 
     plot_backend = 'k3d'
 
-    gamma = bu.Float(np.pi/2+1e-5, GEO=True)
+    gamma = bu.Float(1, GEO=True)
     x_ur = bu.Float(1000, GEO=True)
     a = bu.Float(1000, GEO=True)
     b = bu.Float(1000, GEO=True)
@@ -136,9 +137,7 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     y_sol1 = bu.Bool(False, GEO=True)
     x_sol1 = bu.Bool(False, GEO=True)
 
-    show_wireframe = tr.Bool(True)
-
-    continuous_update = False
+    continuous_update = True
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
@@ -152,7 +151,8 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='c_high', n_steps=100, continuous_update=continuous_update)),
         bu.Item('y_sol1'),
-        bu.Item('x_sol1')
+        bu.Item('x_sol1'),
+        *WBCell.ipw_view.content,
     )
 
     n_I = tr.Property
@@ -247,18 +247,6 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
         x_translated = x_pushed_forward #  + self.translations[:, np.newaxis, :]
         return x_translated[0,...]
 
-    I_Fi = tr.Property
-    '''Triangle mapping '''
-    @tr.cached_property
-    def _get_I_Fi(self):
-        return np.array([[0,1,2],
-                         [0,3,4],
-                         [0,1,5],
-                         [0,2,6],
-                         [0,3,5],
-                         [0,4,6],
-                         ])
-
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_delta_x(self):
@@ -273,37 +261,6 @@ class WBElem5Param(bu.InteractiveModel,bu.InjectSymbExpr):
     @tr.cached_property
     def _get_R_0(self):
         return self.symb.get_R_0()
-
-    opacity = bu.Float(0.6, GEO=True)
-
-    def setup_plot(self, pb):
-        wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
-                                 self.I_Fi.astype(np.uint32),
-                                opacity=self.opacity,
-                                 color=0x999999,
-                                 side='double')
-        pb.plot_fig += wb_mesh
-        pb.objects['wb_mesh'] = wb_mesh
-        if self.show_wireframe:
-            wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
-                                            self.I_Fi.astype(np.uint32),
-                                            color=0x000000,
-                                            wireframe=True)
-
-            pb.plot_fig += wb_mesh_wireframe
-            pb.objects['wb_mesh_wireframe'] = wb_mesh_wireframe
-
-    def update_plot(self, pb):
-        wb_mesh = pb.objects['wb_mesh']
-        wb_mesh_wireframe = pb.objects['wb_mesh_wireframe']
-        self._assign_mesh_data(wb_mesh)
-        if self.show_wireframe:
-            self._assign_mesh_data(wb_mesh_wireframe)
-
-    def _assign_mesh_data(self, mesh):
-        mesh.vertices = self.X_Ia.astype(np.float32)
-        mesh.indices = self.I_Fi.astype(np.uint32)
-        mesh.attributes = self.X_Ia[:, 2].astype(np.float32)
 
 def q_normalize(q, axis=1):
     sq = np.sqrt(np.sum(q * q, axis=axis))

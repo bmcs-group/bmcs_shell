@@ -3,6 +3,7 @@
 """
 import bmcs_utils.api as bu
 import sympy as sp
+from bmcs_shell.folding.geometry.wb_cell import WBCell
 from sympy.algebras.quaternion import Quaternion
 import k3d
 import traits.api as tr
@@ -97,7 +98,7 @@ class WBElemSymb4Param(bu.SymbExpr):
     ]
 
 
-class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
+class WBElem4Param(WBCell, bu.InjectSymbExpr):
     name = 'Waterbomb cell 4p'
     symb_class = WBElemSymb4Param
 
@@ -111,8 +112,6 @@ class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
 
-    show_wireframe = tr.Bool(True)
-
     ipw_view = bu.View(
         bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
@@ -122,6 +121,7 @@ class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
             low=1e-6, high_name='b_high', n_steps=100, continuous_update=True)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='c_high', n_steps=100, continuous_update=True)),
+        *WBCell.ipw_view.content,
     )
 
     n_I = tr.Property
@@ -174,18 +174,6 @@ class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
         x_translated = x_pushed_forward #  + self.translations[:, np.newaxis, :]
         return x_translated[0,...]
 
-    I_Fi = tr.Property
-    '''Triangle mapping '''
-    @tr.cached_property
-    def _get_I_Fi(self):
-        return np.array([[0, 1, 2],
-                         [0, 3, 4],
-                         [0, 1, 5],
-                         [0, 2, 6],
-                         [0, 3, 5],
-                         [0, 4, 6],
-                         ])
-
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_delta_x(self):
@@ -201,33 +189,6 @@ class WBElem4Param(bu.InteractiveModel, bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
-    opacity = bu.Float(0.6, GEO=True)
-
-    def setup_plot(self, pb):
-        self.wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
-                                self.I_Fi.astype(np.uint32),
-                                opacity=self.opacity,
-                                color=0x999999,
-                                side='double')
-        pb.plot_fig += self.wb_mesh
-
-        if self.show_wireframe:
-            self.wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
-                                            self.I_Fi.astype(np.uint32),
-                                            color=0x000000,
-                                            wireframe=True)
-
-            pb.plot_fig += self.wb_mesh_wireframe
-
-    def update_plot(self, pb):
-        self._assign_mesh_data(self.wb_mesh)
-        if self.show_wireframe:
-            self._assign_mesh_data(self.wb_mesh_wireframe)
-
-    def _assign_mesh_data(self, mesh):
-        mesh.vertices = self.X_Ia.astype(np.float32)
-        mesh.indices = self.I_Fi.astype(np.uint32)
-        mesh.attributes = self.X_Ia[:, 2].astype(np.float32)
 
 def q_normalize(q, axis=1):
     sq = np.sqrt(np.sum(q * q, axis=axis))

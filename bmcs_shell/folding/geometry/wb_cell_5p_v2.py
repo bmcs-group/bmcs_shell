@@ -2,21 +2,21 @@ import bmcs_utils.api as bu
 import k3d
 import traits.api as tr
 import numpy as np
+from bmcs_shell.folding.geometry.wb_cell import WBCell
 from numpy import sin, cos, sqrt
 
 
-class WBElem5ParamV2(bu.InteractiveModel):
+class WBElem5ParamV2(WBCell):
     name = 'waterbomb cell 5p v2'
 
     plot_backend = 'k3d'
 
-    gamma = bu.Float(np.pi/6, GEO=True)
-    beta = bu.Float(np.pi/3, GEO=True)
+    gamma = bu.Float(np.pi / 6, GEO=True)
+    beta = bu.Float(np.pi / 3, GEO=True)
     a = bu.Float(500, GEO=True)
     b = bu.Float(750, GEO=True)
     c = bu.Float(400, GEO=True)
 
-    show_wireframe = tr.Bool(True)
     continuous_update = True
 
     ipw_view = bu.View(
@@ -30,11 +30,13 @@ class WBElem5ParamV2(bu.InteractiveModel):
             low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+        *WBCell.ipw_view.content,
     )
 
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
     '''
+
     @tr.cached_property
     def _get_X_Ia(self):
         return self.get_cell_vertices()
@@ -50,14 +52,14 @@ class WBElem5ParamV2(bu.InteractiveModel):
         cos_psi1 = ((b ** 2 - a ** 2) - a * sqrt(a ** 2 + b ** 2) * cos(beta)) / (b * sqrt(a ** 2 + b ** 2) * sin(beta))
         sin_psi1 = sqrt(
             a ** 2 * (3 * b ** 2 - a ** 2) + 2 * a * (b ** 2 - a ** 2) * sqrt(a ** 2 + b ** 2) * cos(beta) - (
-                        a ** 2 + b ** 2) ** 2 * cos(beta) ** 2) / (b * sqrt(a ** 2 + b ** 2) * sin(beta))
+                    a ** 2 + b ** 2) ** 2 * cos(beta) ** 2) / (b * sqrt(a ** 2 + b ** 2) * sin(beta))
         cos_psi5 = (sqrt(a ** 2 + b ** 2) * cos(beta) - a * cos(2 * gamma)) / (b * sin(2 * gamma))
         sin_psi5 = sqrt(b ** 2 + 2 * a * sqrt(a ** 2 + b ** 2) * cos(beta) * cos(2 * gamma) - (a ** 2 + b ** 2) * (
-                    cos(beta) ** 2 + cos(2 * gamma) ** 2)) / (b * sin(2 * gamma))
+                cos(beta) ** 2 + cos(2 * gamma) ** 2)) / (b * sin(2 * gamma))
         cos_psi6 = (a - sqrt(a ** 2 + b ** 2) * cos(beta) * cos(2 * gamma)) / (
-                    sqrt(a ** 2 + b ** 2) * sin(beta) * sin(2 * gamma))
+                sqrt(a ** 2 + b ** 2) * sin(beta) * sin(2 * gamma))
         sin_psi6 = sqrt(b ** 2 + 2 * a * sqrt(a ** 2 + b ** 2) * cos(beta) * cos(2 * gamma) - (a ** 2 + b ** 2) * (
-                    cos(beta) ** 2 + cos(2 * gamma) ** 2)) / (sqrt(a ** 2 + b ** 2) * sin(beta) * sin(2 * gamma))
+                cos(beta) ** 2 + cos(2 * gamma) ** 2)) / (sqrt(a ** 2 + b ** 2) * sin(beta) * sin(2 * gamma))
         cos_psi1plus6 = cos_psi1 * cos_psi6 - sin_psi1 * sin_psi6
         sin_psi1plus6 = sin_psi1 * cos_psi6 + cos_psi1 * sin_psi6
 
@@ -83,40 +85,3 @@ class WBElem5ParamV2(bu.InteractiveModel):
 
         X_Ia = np.vstack((np.zeros(3), U_lr, U_ll, U_ur, U_ul, V_r, V_l)).astype(np.float32)
         return X_Ia
-
-    I_Fi = tr.Property
-    '''Triangle mapping '''
-    @tr.cached_property
-    def _get_I_Fi(self):
-        return np.array([[0, 1, 2], [0, 3, 4], [0, 1, 5], [0, 5, 3], [0, 2, 6], [0, 6, 4]]).astype(np.int32)
-
-    opacity = bu.Float(0.6, GEO=True)
-
-    def setup_plot(self, pb):
-        wb_mesh = k3d.mesh(self.X_Ia.astype(np.float32),
-                                 self.I_Fi.astype(np.uint32),
-                                opacity=self.opacity,
-                                 color=0x999999,
-                                 side='double')
-        pb.plot_fig += wb_mesh
-        pb.objects['wb_mesh'] = wb_mesh
-        if self.show_wireframe:
-            wb_mesh_wireframe = k3d.mesh(self.X_Ia.astype(np.float32),
-                                            self.I_Fi.astype(np.uint32),
-                                            color=0x000000,
-                                            wireframe=True)
-
-            pb.plot_fig += wb_mesh_wireframe
-            pb.objects['wb_mesh_wireframe'] = wb_mesh_wireframe
-
-    def update_plot(self, pb):
-        wb_mesh = pb.objects['wb_mesh']
-        wb_mesh_wireframe = pb.objects['wb_mesh_wireframe']
-        self._assign_mesh_data(wb_mesh)
-        if self.show_wireframe:
-            self._assign_mesh_data(wb_mesh_wireframe)
-
-    def _assign_mesh_data(self, mesh):
-        mesh.vertices = self.X_Ia.astype(np.float32)
-        mesh.indices = self.I_Fi.astype(np.uint32)
-        mesh.attributes = self.X_Ia[:, 2].astype(np.float32)
