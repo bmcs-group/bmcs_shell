@@ -32,41 +32,16 @@ class FETS2DMITC(FETSEval):
         # and t along thickness
         # 2 Gauss points along thickness t
         # 7 Gauss points on the plane of the element
-        return np.array([[0.1012865073235, 0.1012865073235, -0.5773502691896],
-                         [0.7974269853531, 0.1012865073235, -0.5773502691896],
-                         [0.1012865073235, 0.7974269853531, -0.5773502691896],
-                         [0.4701420641051, 0.0597158717898, -0.5773502691896],
-                         [0.4701420641051, 0.4701420641051, -0.5773502691896],
-                         [0.0597158717898, 0.4701420641051, -0.5773502691896],
-                         [0.3333333333333, 0.3333333333333, -0.5773502691896],
-                         [0.1012865073235, 0.1012865073235, 0.5773502691896],
-                         [0.7974269853531, 0.1012865073235, 0.5773502691896],
-                         [0.1012865073235, 0.7974269853531, 0.5773502691896],
-                         [0.4701420641051, 0.0597158717898, 0.5773502691896],
-                         [0.4701420641051, 0.4701420641051, 0.5773502691896],
-                         [0.0597158717898, 0.4701420641051, 0.5773502691896],
-                         [0.3333333333333, 0.3333333333333, 0.5773502691896]], dtype='f')
+        return np.array([[1. / 3., 1. / 3., 1. / 3.]], dtype='f') # should be return np.array([[1. / 3., 1. / 3., 0]], dtype='f')
+
 
     w_m = tr.Array('float_')
     r'''Weight factors for numerical integration.
     '''
 
     def _w_m_default(self):
-        return np.array([0.0629695902724,
-                         0.0629695902724,
-                         0.0629695902724,
-                         0.0661970763943,
-                         0.0661970763943,
-                         0.0661970763943,
-                         0.1125,
-                         0.0629695902724,
-                         0.0629695902724,
-                         0.0629695902724,
-                         0.0661970763943,
-                         0.0661970763943,
-                         0.0661970763943,
-                         0.1125
-                         ], dtype='f')
+        print('w_m called!!')
+        return np.array([1], dtype='f')
 
     # TODO, different node thickness in each node according to the original
     #  implementation can be easily integrated, but here the same thickness
@@ -74,7 +49,7 @@ class FETS2DMITC(FETSEval):
     a = tr.Float(1.0,
                  label='thickness')
 
-    n_m = tr.Int(14)
+    n_m = tr.Property(depends_on='w_m')
     r'''Number of integration points.
     '''
 
@@ -92,7 +67,7 @@ class FETS2DMITC(FETSEval):
     def _get_N_im(self):
         # Shouldn't be mi instead of im?
         eta = self.eta_ip
-        return np.array([1 - eta[:, 0] - eta[:, 1], eta[:, 0], eta[:, 1]],
+        return np.array([eta[:, 0], eta[:, 1], 1 - eta[:, 0] - eta[:, 1]],
                         dtype='f')
 
     dh_imr = tr.Property(depends_on='eta_ip')
@@ -102,12 +77,13 @@ class FETS2DMITC(FETSEval):
     @tr.cached_property
     def _get_dh_imr(self):
         # Same for all Gauss points
-        dh_ri = np.array([[-1, 1, 0],       # dh1/d_r, dh2/d_r, dh3/d_r
-                           [-1, 0, 1],      # dh1/d_s, dh2/d_s, dh3/d_s
-                           [0, 0, 0]],      # dh1/d_t, dh2/d_t, dh3/d_t
+        dh_ri = np.array([[1, 0, -1],  # dh1/d_r, dh2/d_r, dh3/d_r
+                          [0, 1, -1],  # dh1/d_s, dh2/d_s, dh3/d_s
+                          [0, 0, 0]],      # dh1/d_t, dh2/d_t, dh3/d_t
                           dtype=np.float_)
         dh_mri = np.tile(dh_ri, (self.n_m, 1, 1))
 
+        # dh_mri = np.flip(dh_mri, 2)
         return np.einsum('mri->imr', dh_mri)
 
     dht_imr = tr.Property(depends_on='eta_ip')
@@ -118,11 +94,13 @@ class FETS2DMITC(FETSEval):
     def _get_dht_imr(self):
         # m: gauss points, r: r, s, t, and i: h1, h2, h3
         eta_ip = self.eta_ip
-        dh_mri = np.array([[[-t, t, 0],         # (t*dh1)/d_r, (t*dh2)/d_r, (t*dh3)/d_r
-                            [-t, 0, t],         # (t*dh1)/d_s, (t*dh2)/d_s, (t*dh3)/d_s
-                            [1 - r - s, r, s]]  # (t*dh1)/d_t, (t*dh2)/d_t, (t*dh3)/d_t
+        dh_mri = np.array([[[t, 0, -t],         # (t*dh1)/d_r, (t*dh2)/d_r, (t*dh3)/d_r
+                            [0, t, -t],         # (t*dh1)/d_s, (t*dh2)/d_s, (t*dh3)/d_s
+                            [r, s, 1 - r - s]]  # (t*dh1)/d_t, (t*dh2)/d_t, (t*dh3)/d_t
                            for r, s, t in zip(eta_ip[:, 0], eta_ip[:, 1], eta_ip[:, 2])],
                           dtype=np.float_)
+
+        # dh_mri = np.flip(dh_mri, 2)
         return np.einsum('mri->imr', dh_mri)
 
     dh_inr = tr.Property(depends_on='eta_ip')
@@ -133,8 +111,6 @@ class FETS2DMITC(FETSEval):
     def _get_dh_inr(self):
         return self.dh_imr
 
-    def get_B(self):
-        pass
 
     vtk_expand_operator = tr.Array(value=[1, 1, 0])
     vtk_node_cell_data = tr.Array

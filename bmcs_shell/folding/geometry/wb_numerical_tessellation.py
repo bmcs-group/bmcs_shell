@@ -1,6 +1,7 @@
 import bmcs_utils.api as bu
 
 from bmcs_shell.folding.geometry.wb_cell import WBCell
+from bmcs_shell.folding.geometry.wb_cell_4p import WBElem4Param
 from bmcs_shell.folding.geometry.wb_cell_5p import WBElem5Param
 from bmcs_shell.folding.geometry.wb_cell_5p_v2 import \
     WBElem5ParamV2
@@ -10,13 +11,13 @@ from scipy.optimize import minimize
 import k3d
 import random
 
-class WBNumericalTessellation(WBElem5ParamV2):
+class WBNumericalTessellation(bu.Model):
     name = 'WB Numerical Tessellation'
 
-    # wb_cell = bu.Instance(WBCell, (), GEO=True)
-    # X_Ia = tr.DelegatesTo('wb_cell')
-    # I_Fi = tr.DelegatesTo('wb_cell')
-    # tree = ['wb_cell']
+    wb_cell = bu.Instance(WBElem4Param, (), GEO=True) # Do it bu.EitherType
+    X_Ia = tr.DelegatesTo('wb_cell')
+    I_Fi = tr.DelegatesTo('wb_cell')
+    tree = ['wb_cell']
 
     plot_backend = 'k3d'
 
@@ -42,8 +43,9 @@ class WBNumericalTessellation(WBElem5ParamV2):
         return self.get_cell_matching_v1_to_v2(self.X_Ia, np.array([6, 2]), np.array([3, 5]))
 
     ipw_view = bu.View(
-        *WBElem5ParamV2.ipw_view.content,
-        # *wb_cell.ipw_view.content,
+        # *WBElem5ParamV2.ipw_view.content,
+
+        # *WBElem4Param.ipw_view.content,
 
         # bu.Item('n_x', latex=r'n_x'),
         # bu.Item('n_y', latex=r'n_y'),

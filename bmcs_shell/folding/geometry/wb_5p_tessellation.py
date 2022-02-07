@@ -1,4 +1,6 @@
 import bmcs_utils.api as bu
+
+from bmcs_shell.folding.geometry.wb_cell_4p import WBElem4Param
 from bmcs_shell.folding.geometry.wb_cell_5p_v2 import \
     WBElem5ParamV2
 import traits.api as tr
@@ -405,41 +407,12 @@ class WB5PTessellation(WBElem5ParamV2):
     #     ur_X_Ia = self._get_ur_X_Ia(X_Ia)
     #
     #     self.add_cell_to_pb(pb, X_Ia, I_Fi, 'X_Ia')
-    #
-    #     # if self.n_x > 1 or self.n_y > 1:
-    #     #     self.add_cell_to_pb(pb, br_X_Ia, I_Fi, 'br_X_Ia')
-    #     #     self.add_cell_to_pb(pb, ur_X_Ia, I_Fi, 'ur_X_Ia')
-    #     #
-    #     #     # for i in range(self.n_y - 1):
-    #
-    #     if self.n_x > 1:
-    #         central_cell_X_Ia = X_Ia
-    #         for j in range(self.n_x - 1):
-    #             if (j + 2) % 2 == 0:
-    #                 # Cell number is even
-    #                 # New central cell is ur_X_Ia
-    #                 br_cell_X_Ia = self._get_br_X_Ia(central_cell_X_Ia)
-    #                 ur_cell_X_Ia = self._get_ur_X_Ia(central_cell_X_Ia)
-    #
-    #                 self.add_cell_to_pb(pb, br_cell_X_Ia, I_Fi, '')
-    #                 self.add_cell_to_pb(pb, ur_cell_X_Ia, I_Fi, '')
-    #                 central_cell_X_Ia = np.copy(ur_cell_X_Ia)
-    #             else:
-    #                 # Cell number is odd
-    #                 # New central cell is ur_X_Ia
-    #
-    #                 ul_cell_X_Ia = self._get_ul_X_Ia(central_cell_X_Ia)
-    #                 bl_cell_X_Ia = self._get_bl_X_Ia(central_cell_X_Ia)
-    #                 self.add_cell_to_pb(pb, ul_cell_X_Ia, I_Fi, '')
-    #                 self.add_cell_to_pb(pb, bl_cell_X_Ia, I_Fi, '')
-    #                 central_cell_X_Ia = np.copy(br_cell_X_Ia)
-    #
-    #                 # br_cell_X_Ia = self._get_br_X_Ia(central_cell_X_Ia)
-    #                 # self.add_cell_to_pb(pb, br_cell_X_Ia, I_Fi, '')
-    #                 # central_cell_X_Ia = np.copy(br_cell_X_Ia)
-
+    #     self.add_cell_to_pb(pb, br_X_Ia, I_Fi, 'br_X_Ia')
+    #     self.add_cell_to_pb(pb, ur_X_Ia, I_Fi, 'ur_X_Ia')
 
     def setup_plot(self, pb):
+        # TODO, save all cells to be plotted in an array, adapt indicies and plot it as one 3D mesh
+        #  then make it also available for updates in the update_plot function
         pb.clear_fig()
         I_Fi = self.I_Fi
         X_Ia = self.X_Ia
@@ -525,7 +498,7 @@ class WB5PTessellation(WBElem5ParamV2):
 
         wb_mesh = k3d.mesh(X_Ia.astype(np.float32),
                            I_Fi.astype(np.uint32),
-                           opacity=0.8,
+                           # opacity=0.9,
                            color=0x999999,
                            side='double')
         rand_color = random.randint(0, 0xFFFFFF)
@@ -557,7 +530,7 @@ class WB5PTessellation(WBElem5ParamV2):
     def add_cell(self, plot, X_Ia, I_Fi):
         wb_mesh = k3d.mesh(X_Ia.astype(np.float32),
                            I_Fi.astype(np.uint32),
-                           opacity=0.8,
+                           # opacity=1,
                            color=0x999999,
                            side='double')
         rand_color = random.randint(0, 0xFFFFFF)

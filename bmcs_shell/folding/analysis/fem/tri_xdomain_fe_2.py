@@ -92,18 +92,18 @@ class TriXDomainFE(XDomainFE):
         X_Eia = self.X_Id[self.I_Ei, :]
         X_E0a = X_Eia[:, 0, :]
         X_Eia -= X_E0a[:, np.newaxis, :]
-        X_Eic = np.einsum('Eac,Eic->Eia', self.T_Fab, X_Eia)
-        return X_Eic[...,:-1]
-        # return X_Eia[..., :-1]
+        # X_Eic = np.einsum('Eac,Eic->Eia', self.T_Fab, X_Eia)
+        # return X_Eic[...,:-1]
+        return X_Eia[..., :-1]
 
     def U2u(self, U_Eia):
         u0_Eia = U_Eia[...,:-1]
         return u0_Eia
 
     def xU2u(self, U_Eia):
-        u1_Eia = np.einsum('Eab,Eib->Eia', self.T_Fab, U_Eia)
-        u2_Eie =  np.einsum('ea,Eia->Eie', DELTA23_ab, u1_Eia)
-        # u2_Eie = np.einsum('ea,Eia->Eie', DELTA23_ab, U_Eia)
+        # u1_Eia = np.einsum('Eab,Eib->Eia', self.T_Fab, U_Eia)
+        # u2_Eie =  np.einsum('ea,Eia->Eie', DELTA23_ab, u1_Eia)
+        u2_Eie = np.einsum('ea,Eia->Eie', DELTA23_ab, U_Eia)
         return u2_Eie
 
     def f2F(self, f_Eid):
@@ -112,9 +112,9 @@ class TriXDomainFE(XDomainFE):
 
     def xf2F(self, f_Eid):
         F1_Eia = np.einsum('da,Eid->Eia', DELTA23_ab, f_Eid)
-        F2_Eia = np.einsum('Eab,Eia->Eib', self.T_Fab, F1_Eia)
-        return F2_Eia
-        # return F1_Eia
+        # F2_Eia = np.einsum('Eab,Eia->Eib', self.T_Fab, F1_Eia)
+        # return F2_Eia
+        return F1_Eia
 
     def k2K(self, K_Eiejf):
         K0_Eicjf = np.concatenate( [K_Eiejf, np.zeros_like(K_Eiejf[:,:,:1,:,:])], axis=2)
@@ -123,13 +123,12 @@ class TriXDomainFE(XDomainFE):
 
     def xk2K(self, K_Eiejf):
         K1_Eiejf = np.einsum('ea,fb,Eiejf->Eiajb', DELTA23_ab, DELTA23_ab, K_Eiejf) # correct
-        T_Eeafb = np.einsum('Eea,Efb->Eeafb', self.T_Fab, self.T_Fab)
+        # T_Eeafb = np.einsum('Eea,Efb->Eeafb', self.T_Fab, self.T_Fab)
         #K_Eab = np.einsum('Eeafb,ef->Eab', T_Eeafb, k_ef)
-        K2_Eiajb = np.einsum('Eeafb,Eiejf->Eiajb', T_Eeafb, K1_Eiejf)
+        # K2_Eiajb = np.einsum('Eeafb,Eiejf->Eiajb', T_Eeafb, K1_Eiejf)
         #K2_Eicjd = np.einsum('Eca,Ebd,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
         #K2_Eicjd = np.einsum('Eac,Edb,Eiajb->Eicjd', self.T_Fab, self.T_Fab, K1_Eicjd)
-        return K2_Eiajb
-        # return K1_Eiejf
+        return K1_Eiejf
 
     I_CDij = tr.Property
     def _get_I_CDij(self):
@@ -196,8 +195,7 @@ class TriXDomainFE(XDomainFE):
     B_Eso = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_B_Eso(self):
-        xx_Ei, yy_Ei = np.einsum('...a->a...', self.x_Eia)
-        # xx_Ei, yy_Ei = np.einsum('...a->a...', self.X_Id[self.F_N, :-1])
+        xx_Ei, yy_Ei = np.einsum('...a->a...', self.X_Id[self.I_Ei, :-1])
         # xx_Ei, yy_Ei = np.einsum('...a->a...', self.mesh.X_Id[self.mesh.I_Fi, :-1])
 
         y23 = yy_Ei[:, 1] - yy_Ei[:, 2]
@@ -305,7 +303,6 @@ class TriXDomainFE(XDomainFE):
         F_N = np.copy(self.F)
         F_N[turn_facets, :] = self.F[turn_facets, ::-1]
         return F_N
-        # return self.mesh.I_Fi
 
     F_normals = tr.Property(tr.Array, depends_on=INPUT)
     r'''Get the normals of the facets.
