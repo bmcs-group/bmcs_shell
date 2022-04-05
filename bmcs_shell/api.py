@@ -16,7 +16,8 @@ from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTes
 from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_base import WBNumTessellationBase
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_base import WBTessellationBase
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_invest import WBNumTessellationInvest
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation import WBNumTessellation
-from bmcs_shell.folding.geometry.wb_tessellation.wb_ana_tessellation_5p import WBTessellation5PV2
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_5pv2 import WBTessellation5PV2
 from bmcs_shell.folding.analysis.abaqus.abaqus_link_simple import AbaqusLink
