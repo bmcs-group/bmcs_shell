@@ -3,18 +3,18 @@
 """
 import bmcs_utils.api as bu
 import k3d
-from bmcs_shell.folding.geometry.wb_cell_4p import \
-    WBElem4Param as WBElem, axis_angle_to_q, qv_mult
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
+    WBCell4Param, axis_angle_to_q, qv_mult
 import traits.api as tr
 import numpy as np
 import json
 import time
 
 
-class WBTessellation(bu.InteractiveModel):
-    name = 'Waterbomb shell'
+class WBTessellation4P(bu.Model):
+    name = 'WB Tessellation 4P'
 
-    wb_cell = tr.Instance(WBElem, ())
+    wb_cell = bu.Instance(WBCell4Param, ())
 
     tree = ['wb_cell']
 
@@ -22,7 +22,7 @@ class WBTessellation(bu.InteractiveModel):
 
     n_phi_plus = bu.Int(4, GEO=True)
     n_x_plus = bu.Int(4, GEO=True)
-    alpha = bu.Float(1e-5, GEO=True)
+    gamma = bu.Float(np.pi/2-0.0001, GEO=True)
     a = bu.Float(1000, GEO=True)
     a_high = bu.Float(2000)
     b = bu.Float(1000, GEO=True)
@@ -40,29 +40,23 @@ class WBTessellation(bu.InteractiveModel):
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
         self.wb_cell.trait_set(
-            alpha=self.alpha,
+            gamma=self.gamma,
             a=self.a,
             a_high=self.a_high,
             b=self.b,
             b_high=self.b_high,
             c=self.c,
-            c_high = self.c_high,
+            c_high=self.c_high,
         )
 
     ipw_view = bu.View(
-        bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
-            low=1e-3, high=np.pi/2, n_steps=100, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(low=1e-3, high_name='a_high', n_steps=100,
-                                                           continuous_update=True)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(low=1e-3, high_name='b_high', n_steps=100,
-                                                           continuous_update=True)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(low=1e-3, high_name='c_high', n_steps=100,
-                                                           continuous_update=True)),
+        # bu.Item('wb_cell'),
+        *WBCell4Param.ipw_view.content,
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
-        bu.Item('show_wireframe'),
-        bu.Item('show_node_labels'),
-        bu.Item('show_nodes')
+        # bu.Item('show_wireframe'),
+        # bu.Item('show_node_labels'),
+        bu.Item('show_nodes'),
     )
 
     def get_phi_range(self, delta_phi):
@@ -183,8 +177,9 @@ class WBTessellation(bu.InteractiveModel):
         return idx_remap[self.I_cells_Fi]
 
     node_match_threshold = tr.Property(depends_on='+GEO')
+
     def _get_node_match_threshold(self):
-        min_length = np.min([self.a,self.b,self.c])
+        min_length = np.min([self.a, self.b, self.c])
         return min_length * 1e-4
 
     unique_node_map = tr.Property(depends_on='+GEO')
@@ -240,12 +235,6 @@ class WBTessellation(bu.InteractiveModel):
                       self.wb_cell.I_boundary[np.newaxis, np.newaxis, :, :])
         return I_CDij_map
 
-    I_Li = tr.Property(depends_on='+GEO')
-    @tr.cached_property
-    def _get_I_Li(self):
-        self.I_Fi
-
-
     def setup_plot(self, pb):
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
@@ -266,7 +255,7 @@ class WBTessellation(bu.InteractiveModel):
         if self.show_nodes:
             self._add_nodes_to_fig(pb, X_Ma)
 
-        if self.show_node_labels:
+        if self.wb_cell.show_node_labels:
             self._add_nodes_labels_to_fig(pb, X_Ia)
 
         if self.show_wireframe:
@@ -330,7 +319,7 @@ class WBTessellation(bu.InteractiveModel):
         pb.objects[self.WIREFRAME] = k3d_mesh_wireframe
 
     def _add_nodes_to_fig(self, pb, X_Ma):
-        k3d_points = k3d.points(X_Ma, point_size=100)
+        k3d_points = k3d.points(X_Ma, point_size=300)
         pb.objects[self.NODES] = k3d_points
         pb.plot_fig += k3d_points
 
