@@ -67,13 +67,6 @@ class TriXDomainMITC(XDomainFE):
     def _get_eta_w(self):
         return self.fets.w_m
 
-    dh_mri = tr.Property()
-    r'''Derivatives of the shape functions in the integration points.
-    '''
-    @tr.cached_property
-    def _get_dh_mri(self):
-        return np.einsum('imr->mri', self.fets.dh_imr)
-
     T_Fab = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_T_Fab(self):
@@ -204,6 +197,12 @@ class TriXDomainMITC(XDomainFE):
         min_mask_Fid = tmp_Fid == min_Fi1
         e_x_min_Fid = min_mask_Fid * 1
         V1_Fid = np.cross(e_x_min_Fid, Vn_Fid)
+
+        # Or take simply e_2 to calculate V1_Fid as in Bathe lecture
+        # e_2_Fid = np.zeros_like(Vn_Fid)
+        # e_2_Fid[..., 1] = 1
+        # V1_Fid = np.cross(e_2_Fid, Vn_Fid)
+
         V2_Fid = np.cross(Vn_Fid, V1_Fid)
         v1_Fid = self._normalize(V1_Fid)
         v2_Fid = self._normalize(V2_Fid)
@@ -289,7 +288,7 @@ class TriXDomainMITC(XDomainFE):
         inv_J_Fmrd = np.linalg.inv(J_Fmrd)
         det_J_Fm = np.linalg.det(J_Fmrd)
         B1_Emiabo = np.einsum('abcd, imr, co, Emrd -> Emiabo', Diff1_abcd, dN_imr, delta35_co, inv_J_Fmrd)
-        B2_Emiabo = np.einsum('abcd, imr, Ficv, vo, Emrd -> Emiabo', Diff1_abcd, dNt_imr, 0.5 * a * V_Ficv, delta25_vo,
+        B2_Emiabo = np.einsum('abcd, imr, Eicv, vo, Emrd -> Emiabo', Diff1_abcd, dNt_imr, 0.5 * a * V_Ficv, delta25_vo,
                               inv_J_Fmrd)
         B_Emiabo = B1_Emiabo + B2_Emiabo
 
@@ -298,6 +297,8 @@ class TriXDomainMITC(XDomainFE):
         return B_Emiabo, det_J_Fm
 
     def _get_B_Empf(self):
+        # TODO: here we're eliminating eps_33 because this is the assumption for shell (for eps IN ELEMENT LEVEL)
+        #  therefore, B_Empf must be already converted to element coords system and not using the global one
         B_Emiabo, _ = self.B_Emiabo
         # Mapping ab to p (3x3 -> 5)
         B_Emipo = B_Emiabo[:, :, :, (0, 1, 0, 1, 2), (0, 1, 1, 2, 0), :]
@@ -307,7 +308,7 @@ class TriXDomainMITC(XDomainFE):
 
         E, m, i, p, o = B_Emipo.shape
         B_Empio = np.einsum('Emipo->Empio', B_Emipo)
-        B_Empf = B_Empio.reshape((E, m, p, 3 * o))
+        B_Empf = B_Empio.reshape((E, m, p, i * o))
         # p: index with max value 5
         # f: index with max value 15
         return B_Empf
@@ -378,41 +379,54 @@ class TriXDomainMITC(XDomainFE):
     # =========================================================================
     # Property operators for initial configuration
     # =========================================================================
-    F0_normals = tr.Property(tr.Array, depends_on='X, L, F')
-    r'''Normal facet vectors.
-    '''
+    F0_normals_Fk = tr.Property(tr.Array, depends_on='X, L, F')
+    r'''Normals of the facets in the initial state (before reordering indices).'''
     @tr.cached_property
-    def _get_F0_normals(self):
-        x_F = self.X_Id[self.mesh.I_Fi]
+    def _get_F0_normals_Fk(self):
+        n0_Fmk = self._get_normals_Fmk(X_Fid=self.X_Id[self.mesh.I_Fi])
+        return np.sum(n0_Fmk, axis=1)
 
-        N_deta_ip = self.dh_mri
+    Fa_normals_Fmk = tr.Property
+    '''Normals of the facets after reordering indices.'''
+    def _get_Fa_normals_Fmk(self):
+        n_Fmk = self._get_normals_Fmk(X_Fid=self.X_Id[self.F_N])
+        return n_Fmk
 
-        r_deta = np.einsum('ajK,IKi->Iaij', N_deta_ip, x_F)
-        Fa_normals = np.einsum('Iai,Iaj,ijk->Iak',
-                               r_deta[..., 0], r_deta[..., 1], EPS)
-        return np.sum(Fa_normals, axis=1)
+    def _get_normals_Fmk(self, X_Fid):
+        dh_mri = np.einsum('imr->mri', self.fets.dh_imr)
+        # dh_Fimr = self.dh_Fimr ??
+        r_deta_Fmdr = np.einsum('mri, Fid->Fmdr', dh_mri, X_Fid)
+        return np.einsum('Fmi,Fmj,ijk->Fmk', r_deta_Fmdr[..., 0], r_deta_Fmdr[..., 1], EPS)
 
-    sign_normals = tr.Property(tr.Array, depends_on='X,L,F')
+    sign_normals_F = tr.Property(tr.Array, depends_on='X,L,F')
     r'''Orientation of the normal in the initial state.
     This array is used to switch the normal vectors of the faces
     to be oriented in the positive sense of the z-axis.
     '''
     @tr.cached_property
-    def _get_sign_normals(self):
+    def _get_sign_normals_F(self):
         # TODO: this takes the sign of the z component of the normal, in 3d this could be not sufficient
-        return np.sign(self.F0_normals[:, 2])
+        return np.sign(self.F0_normals_Fk[:, 2])
+
+    norm_F_normals = tr.Property(tr.Array, depends_on=INPUT)
+    r'''Get the normed normals of the facets after reordering F indices.'''
+    @tr.cached_property
+    def _get_norm_F_normals(self):
+        Fa_normals_Fmk = self.Fa_normals_Fmk
+        n_Fk = np.sum(Fa_normals_Fmk, axis=1)
+        mag_n = np.sqrt(np.einsum('...i,...i', n_Fk, n_Fk))
+        return n_Fk / mag_n[:, np.newaxis]
 
     F_N = tr.Property(tr.Array, depends_on='X,L,F')
-    r'''Counter-clockwise enumeration.
-    '''
+    r'''Counter-clockwise enumeration.'''
     @tr.cached_property
     def _get_F_N(self):
         # TODO: following test may be not valid in 3D shells case! other condition is to be taken
-        turn_facets = np.where(self.sign_normals < 0)
-        F_N = np.copy(self.mesh.I_Fi)
-        F_N[turn_facets, :] = self.mesh.I_Fi[turn_facets, ::-1]
-        # return self.mesh.I_Fi
-        return F_N
+        turn_facets_F = np.where(self.sign_normals_F < 0)
+        F_Fi = np.copy(self.mesh.I_Fi)
+        F_Fi[turn_facets_F, :] = self.mesh.I_Fi[turn_facets_F, ::-1]
+        return self.mesh.I_Fi
+        # return F_Fi
 
     dh_Fimr = tr.Property(tr.Array, depends_on=INPUT)
     # @tr.cached_property
@@ -421,7 +435,7 @@ class TriXDomainMITC(XDomainFE):
         facets_num = self.F_N.shape[0]
         dh_Fimr = np.copy(np.broadcast_to(dh_imr, (facets_num, *dh_imr.shape)))
 
-        turn_facets = np.where(self.sign_normals < 0)
+        turn_facets = np.where(self.sign_normals_F < 0)
         dh_Fimr[turn_facets, ...] = dh_Fimr[turn_facets, ::-1, ...]
         return dh_Fimr
 
@@ -432,26 +446,9 @@ class TriXDomainMITC(XDomainFE):
         facets_num = self.F_N.shape[0]
         dht_Fimr = np.copy(np.broadcast_to(dht_imr, (facets_num, *dht_imr.shape)))
 
-        turn_facets = np.where(self.sign_normals < 0)
+        turn_facets = np.where(self.sign_normals_F < 0)
         dht_Fimr[turn_facets, ...] = dht_Fimr[turn_facets, ::-1, ...]
         return dht_Fimr
-
-    F_normals = tr.Property(tr.Array, depends_on=INPUT)
-    r'''Get the normals of the facets.
-    '''
-    @tr.cached_property
-    def _get_F_normals(self):
-        n = self.Fa_normals
-        return np.sum(n, axis=1)
-
-    norm_F_normals = tr.Property(tr.Array, depends_on=INPUT)
-    r'''Get the normed normals of the facets.
-    '''
-    @tr.cached_property
-    def _get_norm_F_normals(self):
-        n = self.F_normals
-        mag_n = np.sqrt(np.einsum('...i,...i', n, n))
-        return n / mag_n[:, np.newaxis]
 
     # F_normals_du = tr.Property(tr.Array, depends_on=INPUT)
     # r'''Get the normals of the facets.
@@ -663,7 +660,7 @@ class TriXDomainMITC(XDomainFE):
     #
     # def _get_Fa_normals_du(self):
     #     x_F = self.X_Id[self.F_N]
-    #     N_deta_ip = self.dh_mri
+    #     N_deta_ip = np.einsum('imr->mri', self.fets.dh_imr)
     #     NN_delta_eps_x1 = np.einsum('aK,aL,KJ,dli,ILl->IaiJd',
     #                                 N_deta_ip[:, 0, :], N_deta_ip[:, 1, :],
     #                                 DELTA, EPS, x_F)
@@ -679,33 +676,17 @@ class TriXDomainMITC(XDomainFE):
     # '''
     # def _get_Fa_area_du(self):
     #     a = self.Fa_area
-    #     n = self.Fa_normals
+    #     n = self.Fa_normals_Fmk
     #     n_du = self.Fa_normals_du
     #     a_du = np.einsum('Ia,Iak,IakJd->IaJd', 1 / a, n, n_du)
     #     return a_du
-
-    Fa_normals = tr.Property
-    '''Get normals of the facets.
-    '''
-
-    def _get_Fa_normals(self):
-        X_Fid = self.X_Id[self.F_N]
-        dh_mri = self.dh_mri
-        r_deta_Fmdr = np.einsum('mri, Fid->Fmdr', dh_mri, X_Fid)
-        return np.einsum('Fmi,Fmj,ijk->Fmk', r_deta_Fmdr[..., 0], r_deta_Fmdr[..., 1], EPS)
-
-        # X_Fid = self.X_Id[self.F_N]
-        # # dh_mri = self.dh_mri
-        # dh_Fimr = self.dh_Fimr
-        # r_deta_Fmdr = np.einsum('Fimr, Fid->Fmdr', dh_Fimr, X_Fid)
-        # return np.einsum('Fmi,Fmj,ijk->Fmk', r_deta_Fmdr[..., 0], r_deta_Fmdr[..., 1], EPS)
 
     # Fa_area = tr.Property
     # '''Get the surface area of the facets.
     # '''
     #
     # def _get_Fa_area(self):
-    #     n = self.Fa_normals
+    #     n = self.Fa_normals_Fmk
     #     a = np.sqrt(np.einsum('Iai,Iai->Ia', n, n))
     #     return a
     #

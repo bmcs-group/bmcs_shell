@@ -20,9 +20,9 @@ class WBTessellation4P(bu.Model):
 
     plot_backend = 'k3d'
 
-    n_phi_plus = bu.Int(4, GEO=True)
-    n_x_plus = bu.Int(4, GEO=True)
-    gamma = bu.Float(np.pi/2-0.0001, GEO=True)
+    n_phi_plus = bu.Int(5, GEO=True)
+    n_x_plus = bu.Int(3, GEO=True)
+    gamma = bu.Float(1.25, GEO=True)
     a = bu.Float(1000, GEO=True)
     a_high = bu.Float(2000)
     b = bu.Float(1000, GEO=True)
