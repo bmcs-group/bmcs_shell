@@ -67,23 +67,23 @@ class TriXDomainMITC(XDomainFE):
     def _get_eta_w(self):
         return self.fets.w_m
 
-    T_Fab = tr.Property(depends_on='+GEO')
-    @tr.cached_property
-    def _get_T_Fab(self):
-        return self.F_L_bases[:, 0, :]
+    # T_Fab = tr.Property(depends_on='+GEO')
+    # @tr.cached_property
+    # def _get_T_Fab(self):
+    #     return self.F_L_bases[:, 0, :]
 
     I_Ei = tr.Property
     def _get_I_Ei(self):
         return self.F_N
 
-    x_Eia = tr.Property(depends_on='+GEO')
-    @tr.cached_property
-    def _get_x_Eia(self):
-        X_Eia = self.X_Id[self.I_Ei, :]
-        X_E0a = X_Eia[:, 0, :]
-        X_Eia -= X_E0a[:, np.newaxis, :]
-        X_Eic = np.einsum('Eac,Eic->Eia', self.T_Fab, X_Eia)
-        return X_Eic[...,:-1]
+    # x_Eia = tr.Property(depends_on='+GEO')
+    # @tr.cached_property
+    # def _get_x_Eia(self):
+    #     X_Eia = self.X_Id[self.I_Ei, :]
+    #     X_E0a = X_Eia[:, 0, :]
+    #     X_Eia -= X_E0a[:, np.newaxis, :]
+    #     X_Eic = np.einsum('Eac,Eic->Eia', self.T_Fab, X_Eia)
+    #     return X_Eic[...,:-1]
 
     # def U2u(self, U_Eia):
     #     u0_Eia = U_Eia[...,:-1]
@@ -190,6 +190,7 @@ class TriXDomainMITC(XDomainFE):
         Vn_Fid = np.tile(n_Fd, (1, 1, el_nodes_num)).reshape(n_Fd.shape[0], n_Fd.shape[1], el_nodes_num)
 
         # Calculating v1 and v2 (vectors perpendicular to director vector)
+        # Finding V1 by getting the minimum component of V3 vector according to Zienkiewicz
         min_Fi1 = np.abs(Vn_Fid).argmin(axis=2)
         min_Fi1 = min_Fi1[..., np.newaxis]
         tmp_Fid = np.zeros_like(Vn_Fid, dtype=np.int_)
@@ -260,7 +261,7 @@ class TriXDomainMITC(XDomainFE):
     #     return dN_dr_Emrco
 
     B_Emiabo = tr.Property(depends_on='+GEO')
-    @tr.cached_property
+    # @tr.cached_property
     def _get_B_Emiabo(self):
         delta35_co = np.zeros((3, 5), dtype='f')
         delta35_co[(0, 1, 2), (0, 1, 2)] = 1
@@ -269,8 +270,9 @@ class TriXDomainMITC(XDomainFE):
 
         _, v1_Fid, v2_Fid = self.v_vectors
         V_Ficv = np.zeros((*v2_Fid.shape, 2), dtype='f')
+        # TODO, one of these maybe should be multiplied with -1 and they might need to be flipped, see x formula
         V_Ficv[..., 0] = v1_Fid
-        V_Ficv[..., 1] = v2_Fid
+        V_Ficv[..., 1] = -v2_Fid
 
         # Thickness a
         a = self.fets.a
@@ -296,6 +298,8 @@ class TriXDomainMITC(XDomainFE):
 
         return B_Emiabo, det_J_Fm
 
+    B_Empf = tr.Property(depends_on='+GEO')
+    # @tr.cached_property
     def _get_B_Empf(self):
         # TODO: here we're eliminating eps_33 because this is the assumption for shell (for eps IN ELEMENT LEVEL)
         #  therefore, B_Empf must be already converted to element coords system and not using the global one
@@ -313,6 +317,40 @@ class TriXDomainMITC(XDomainFE):
         # f: index with max value 15
         return B_Empf
 
+    # Transformation matrix, see P. 475 (Zienkiewicz FEM book)
+    def get_theta(self):
+        J_Fmrd = self.dx_dr_Fmrd
+        dx_dr_Fmd = J_Fmrd[..., 0, :]
+        dx_ds_Fmd = J_Fmrd[..., 1, :]
+        V3_Fmd = np.cross(dx_dr_Fmd, dx_ds_Fmd)
+
+        # Finding V1 by simply selecting e1
+        e_2_Fmd = np.zeros_like(V3_Fmd)
+        e_2_Fmd[..., 0] = 1
+        V1_Fmd = np.cross(e_2_Fmd, V3_Fmd)
+
+        # Finding V1 by getting the minimum component of V3 vector according to Zienkiewicz
+        # min_Fm1 = np.abs(V3_Fmd).argmin(axis=2)
+        # min_Fm1 = min_Fm1[..., np.newaxis]
+        # tmp_Fmd = np.zeros_like(V3_Fmd, dtype=np.int_)
+        # tmp_Fmd[..., :] = np.arange(3)
+        # min_mask_Fmd = tmp_Fmd == min_Fm1
+        # e_x_min_Fmd = min_mask_Fmd * 1
+        # V1_Fmd = np.cross(e_x_min_Fmd, V3_Fmd)
+
+        V2_Fmd = np.cross(V3_Fmd, V1_Fmd)
+
+        v1_Fmd = self._normalize(V1_Fmd)
+        v2_Fmd = self._normalize(V2_Fmd)
+        v3_Fmd = self._normalize(V3_Fmd)
+
+        theta_Fmdj = np.zeros((*v1_Fmd.shape, 3), dtype='f')
+        theta_Fmdj = np.einsum('Fmdj->Fmjd', theta_Fmdj)
+        theta_Fmdj[..., 0, :] = v1_Fmd
+        theta_Fmdj[..., 1, :] = v2_Fmd
+        theta_Fmdj[..., 2, :] = v3_Fmd
+        return theta_Fmdj
+
     def map_U_to_field(self, U_o):
         # print('map_U_to_field')
         # # For testing with one element:
@@ -322,11 +360,8 @@ class TriXDomainMITC(XDomainFE):
         print('U_o:', U_o)
 
         # TODO: check if the transformation caused by following line is needed
-        U_Eio = U_o[self.o_Eia]
-        # print('U_Eio,', U_Eio)
-        # U_Eio = U_o.reshape((-1, self.fets.n_nodal_dofs))[self.F_N]
-
-        print('U_Eio,', U_Eio)
+        # U_Eio = U_o[self.o_Eia]
+        U_Eio = U_o.reshape((-1, self.fets.n_nodal_dofs))[self.F_N]
 
         B_Emiabo, _ = self.B_Emiabo
 
@@ -345,13 +380,12 @@ class TriXDomainMITC(XDomainFE):
 
         _, det_J_Fm = self.B_Emiabo
 
-        B_Empf = self._get_B_Empf()
-        f_Emf = self.integ_factor * np.einsum('m, Emsf, Ems, Em -> Emf', self.fets.w_m, B_Empf, sig_Ems, det_J_Fm)
+        f_Emf = self.integ_factor * np.einsum('m, Emsf, Ems, Em -> Emf', self.fets.w_m, self.B_Empf, sig_Ems, det_J_Fm)
         f_Ef = np.sum(f_Emf, axis=1)
 
-        o_Ei = self.o_Eia.reshape(-1, 3 * 5)
+        # o_Ei = self.o_Eia.reshape(-1, 3 * 5)
         # print('o_Ei:', o_Ei)
-        # o_Ei = self.o_Ia[self.F_N].reshape(-1, 3 * self.fets.n_nodal_dofs)
+        o_Ei = self.o_Ia[self.F_N].reshape(-1, 3 * self.fets.n_nodal_dofs)
 
         return o_Ei.flatten(), f_Ef.flatten()
 
@@ -360,14 +394,14 @@ class TriXDomainMITC(XDomainFE):
         w_m = self.fets.w_m  # Gauss points weights
         _, det_J_Fm = self.B_Emiabo
 
-        B_Empf = self._get_B_Empf()
+        B_Empf = self.B_Empf
         k2_Emop = self.integ_factor * np.einsum('m, Empf, Ept, Emtq, Em -> Emfq', w_m, B_Empf, D_Est, B_Empf,
                                                    det_J_Fm)
         k2_Eop = np.sum(k2_Emop, axis=1)
 
-        o_Ei = self.o_Eia.reshape(-1, 3 * 5)
+        # o_Ei = self.o_Eia.reshape(-1, 3 * 5)
         # print('o_Ei:', o_Ei)
-        # o_Ei = self.o_Ia[self.F_N].reshape(-1, 3 * self.fets.n_nodal_dofs)
+        o_Ei = self.o_Ia[self.F_N].reshape(-1, 3 * self.fets.n_nodal_dofs)
 
         return SysMtxArray(mtx_arr=k2_Eop, dof_map_arr=o_Ei)
 
@@ -425,9 +459,10 @@ class TriXDomainMITC(XDomainFE):
         turn_facets_F = np.where(self.sign_normals_F < 0)
         F_Fi = np.copy(self.mesh.I_Fi)
         F_Fi[turn_facets_F, :] = self.mesh.I_Fi[turn_facets_F, ::-1]
-        return self.mesh.I_Fi
-        # return F_Fi
+        # return self.mesh.I_Fi  # for testing..
+        return F_Fi
 
+    # TODO: when you get the first benchmark with one element working you may need to enforce these instead of dh_imr..
     dh_Fimr = tr.Property(tr.Array, depends_on=INPUT)
     # @tr.cached_property
     def _get_dh_Fimr(self):

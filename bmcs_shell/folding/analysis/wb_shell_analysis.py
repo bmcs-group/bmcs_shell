@@ -12,7 +12,7 @@ from bmcs_shell.folding.analysis.fem.tri_xdomain_fe import TriXDomainFE
 from bmcs_shell.folding.analysis.fem.bcs import BoundaryConditions
 from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
-from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
+from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry4P
 from bmcs_shell.folding.analysis.wb_fe_triangular_mesh import WBShellFETriangularMesh
 
 itags_str = '+GEO,+MAT,+BC'
@@ -47,7 +47,7 @@ class WBShellAnalysis(TStepBC, bu.InteractiveModel):
 
     tree = ['geo', 'bcs', 'tmodel', 'xdomain']
 
-    geo = bu.Instance(WBShellGeometry, ())
+    geo = bu.Instance(WBShellGeometry4P, ())
 
     tmodel = bu.Instance(MATS2DElastic, ())
     # tmodel = bu.Instance(MATSShellElastic, ())
