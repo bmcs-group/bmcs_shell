@@ -2,11 +2,11 @@ import bmcs_utils.api as bu
 import k3d
 import traits.api as tr
 import numpy as np
-from bmcs_shell.folding.geometry.wb_cell import WBCell
+from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from numpy import sin, cos, sqrt
 
 
-class WBElem5ParamV2(WBCell):
+class WBCell5ParamV2(WBCell):
     name = 'waterbomb cell 5p v2'
 
     plot_backend = 'k3d'

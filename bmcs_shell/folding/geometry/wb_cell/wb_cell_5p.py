@@ -3,7 +3,7 @@
 """
 import bmcs_utils.api as bu
 import sympy as sp
-from bmcs_shell.folding.geometry.wb_cell import WBCell
+from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from sympy.algebras.quaternion import Quaternion
 import k3d
 import traits.api as tr
@@ -26,7 +26,7 @@ def get_x_sol(Eq_UOU, x_ul, subs_yz):
     return x_ul_sol1, x_ul_sol2, A_, B_, C_
 
 
-class WBElemSymb5ParamXL(bu.SymbExpr):
+class WBCellSymb5ParamXL(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     gamma = sp.symbols('gamma')
@@ -117,9 +117,9 @@ class WBElemSymb5ParamXL(bu.SymbExpr):
         ('P_3', ()),
     ]
 
-class WBElem5Param(WBCell, bu.InjectSymbExpr):
+class WBCell5Param(WBCell, bu.InjectSymbExpr):
     name = 'waterbomb cell 5p'
-    symb_class = WBElemSymb5ParamXL
+    symb_class = WBCellSymb5ParamXL
 
     plot_backend = 'k3d'
 

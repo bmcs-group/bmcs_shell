@@ -3,18 +3,18 @@
 """
 import bmcs_utils.api as bu
 import sympy as sp
-from bmcs_shell.folding.geometry.wb_cell import WBCell
+from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from sympy.algebras.quaternion import Quaternion
 import k3d
 import traits.api as tr
 import numpy as np
 
 
-class WBElemSymb4Param(bu.SymbExpr):
+class WBCellSymb4Param(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     u_2, u_3 = sp.symbols('u_2, u_3', positive=True)
-    alpha = sp.symbols('alpha', positive=True)
+    gamma = sp.symbols('gamma', positive=True)
 
     U0_a = sp.Matrix([a, b, 0])
     W0_a = sp.Matrix([c, 0, 0])
@@ -23,7 +23,7 @@ class WBElemSymb4Param(bu.SymbExpr):
     L2_UW_0 = (UW0_a.T * UW0_a)[0]
 
     U1_a = sp.Matrix([a, u_2, u_3])
-    W1_a = sp.Matrix([c * sp.cos(alpha), 0, c * sp.sin(alpha)])
+    W1_a = sp.Matrix([c * sp.sin(gamma), 0, c * sp.cos(gamma)])
     UW1_a = U1_a - W1_a
     L2_U_1 = (U1_a.T * U1_a)[0]
     L2_UW_1 = (UW1_a.T * UW1_a)[0]
@@ -86,7 +86,7 @@ class WBElemSymb4Param(bu.SymbExpr):
     # X_rot = q_theta.rotate_point((x_1, x_2, x_3), q_theta)
     # X_theta_a = sp.simplify(sp.Matrix(X_rot))
 
-    symb_model_params = ['alpha', 'a', 'b', 'c', ]
+    symb_model_params = ['gamma', 'a', 'b', 'c', ]
     symb_expressions = [
         ('u_2_', ()),
         ('u_3_', ()),
@@ -98,13 +98,13 @@ class WBElemSymb4Param(bu.SymbExpr):
     ]
 
 
-class WBElem4Param(WBCell, bu.InjectSymbExpr):
+class WBCell4Param(WBCell, bu.InjectSymbExpr):
     name = 'Waterbomb cell 4p'
-    symb_class = WBElemSymb4Param
+    symb_class = WBCellSymb4Param
 
     plot_backend = 'k3d'
 
-    alpha = bu.Float(1e-5, GEO=True)
+    gamma = bu.Float(np.pi/2-0.001, GEO=True)
     a = bu.Float(1000, GEO=True)
     b = bu.Float(1000, GEO=True)
     c = bu.Float(1000, GEO=True)
@@ -113,7 +113,7 @@ class WBElem4Param(WBCell, bu.InjectSymbExpr):
     c_high = bu.Float(2000)
 
     ipw_view = bu.View(
-        bu.Item('alpha', latex=r'\alpha', editor=bu.FloatRangeEditor(
+        bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=True)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='a_high', n_steps=100, continuous_update=True)),
@@ -131,48 +131,49 @@ class WBElem4Param(WBCell, bu.InjectSymbExpr):
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
     '''
+
     @tr.cached_property
     def _get_X_Ia(self):
-        alpha = self.alpha
+        gamma = self.gamma
         u_2 = self.symb.get_u_2_()
         u_3 = self.symb.get_u_3_()
         return np.array([
-            [0,0,0], # 0 point
-            [self.a, u_2, u_3], #U++
-            [-self.a, u_2, u_3], #U-+
-            [self.a,-u_2, u_3], #U+-
-            [-self.a,-u_2, u_3], #U--
-            [self.c * np.cos(alpha), 0, self.c * np.sin(alpha)], # W0+
-            [-self.c * np.cos(alpha), 0, self.c * np.sin(alpha)] # W0-
-            ], dtype=np.float_
+            [0, 0, 0],  # 0 point
+            [self.a, u_2, u_3],  # U++
+            [-self.a, u_2, u_3],  # U-+
+            [self.a, -u_2, u_3],  # U+-
+            [-self.a, -u_2, u_3],  # U--
+            [self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],  # W0+
+            [-self.c * np.sin(gamma), 0, self.c * np.cos(gamma)]  # W0-
+        ], dtype=np.float_
         )
 
-    I_boundary = tr.Array(np.int_, value=[[2,1],
-                                          [6,5],
-                                          [4,3],])
+    I_boundary = tr.Array(np.int_, value=[[2, 1],
+                                          [6, 5],
+                                          [4, 3], ])
     '''Boundary nodes in 2D array to allow for generation of shell boundary nodes'''
 
-    X_theta_Ia = tr.Property(depends_on='+GEO')
-    '''Array with nodal coordinates I - node, a - dimension
-    '''
-    @tr.cached_property
-    def _get_X_theta_Ia(self):
-        D_a = self.symb.get_D_(self.alpha).T
-        theta = self.symb.get_theta_sol(self.alpha)
-        XD_Ia = D_a + self.X_Ia
-        X_center = XD_Ia[1,:]
-
-        rotation_axes = np.array([[1, 0, 0]], dtype=np.float_)
-        rotation_angles = np.array([-theta], dtype=np.float_)
-        rotation_centers = np.array([X_center], dtype=np.float_)
-
-        x_single = np.array([XD_Ia], dtype='f')
-        x_pulled_back = x_single - rotation_centers[:, np.newaxis, :]
-        q = axis_angle_to_q(rotation_axes, rotation_angles)
-        x_rotated = qv_mult(q, x_pulled_back)
-        x_pushed_forward = x_rotated + rotation_centers[:, np.newaxis, :]
-        x_translated = x_pushed_forward #  + self.translations[:, np.newaxis, :]
-        return x_translated[0,...]
+    # X_theta_Ia = tr.Property(depends_on='+GEO')
+    # '''Array with nodal coordinates I - node, a - dimension
+    # '''
+    # @tr.cached_property
+    # def _get_X_theta_Ia(self):
+    #     D_a = self.symb.get_D_(self.gamma).T
+    #     theta = self.symb.get_theta_sol(self.gamma)
+    #     XD_Ia = D_a + self.X_Ia
+    #     X_center = XD_Ia[1,:]
+    #
+    #     rotation_axes = np.array([[1, 0, 0]], dtype=np.float_)
+    #     rotation_angles = np.array([-theta], dtype=np.float_)
+    #     rotation_centers = np.array([X_center], dtype=np.float_)
+    #
+    #     x_single = np.array([XD_Ia], dtype='f')
+    #     x_pulled_back = x_single - rotation_centers[:, np.newaxis, :]
+    #     q = axis_angle_to_q(rotation_axes, rotation_angles)
+    #     x_rotated = qv_mult(q, x_pulled_back)
+    #     x_pushed_forward = x_rotated + rotation_centers[:, np.newaxis, :]
+    #     x_translated = x_pushed_forward #  + self.translations[:, np.newaxis, :]
+    #     return x_translated[0,...]
 
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property

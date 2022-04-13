@@ -2,7 +2,7 @@ import bmcs_utils.api as bu
 import k3d
 import numpy as np
 import traits.api as tr
-from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry
+from bmcs_shell.folding.geometry.wb_shell_geometry import WBShellGeometry4P
 from ibvpy.bcond import BCDof
 import os
 
@@ -13,7 +13,7 @@ class BoundaryConditions(bu.Model):
     id = bu.Str
     n_nodal_dofs = 5
 
-    geo = bu.Instance(WBShellGeometry, ())
+    geo = bu.Instance(WBShellGeometry4P, ())
 
     bc_input = bu.Str(r'0, 0, 0,,')
     f_input = bu.Str(r',, -20000,,')

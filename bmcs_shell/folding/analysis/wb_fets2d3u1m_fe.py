@@ -20,7 +20,7 @@ class FETS2D3U1M(FETSEval):
     # =========================================================================
     # Surface integrals using numerical integration
     # =========================================================================
-    # i is point indices, p is point coords in natural coords (zeta_1, zeta_2, zeta_3)
+    # i is gauss point index, p is point coords in natural coords (zeta_1, zeta_2, zeta_3)
     eta_ip = tr.Array('float_')
     r'''Integration points within a triangle.
     '''
@@ -45,14 +45,14 @@ class FETS2D3U1M(FETSEval):
 
     n_nodal_dofs = tr.Int(3)
 
-    N_im = tr.Property(depends_on='eta_ip')
-    r'''Shape function values in integration points.
-    '''
-    @tr.cached_property
-    def _get_N_im(self):
-        eta = self.eta_ip
-        return np.array([eta[:, 0], eta[:, 1], 1 - eta[:, 0] - eta[:, 1]],
-                        dtype='f')
+    # N_im = tr.Property(depends_on='eta_ip')
+    # r'''Shape function values in integration points.
+    # '''
+    # @tr.cached_property
+    # def _get_N_im(self):
+    #     eta = self.eta_ip
+    #     return np.array([eta[:, 0], eta[:, 1], 1 - eta[:, 0] - eta[:, 1]],
+    #                     dtype='f')
 
     dN_imr = tr.Property(depends_on='eta_ip')
     r'''Derivatives of the shape functions in the integration points.
