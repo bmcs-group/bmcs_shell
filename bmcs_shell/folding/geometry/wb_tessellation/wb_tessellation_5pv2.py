@@ -34,7 +34,6 @@ class WBTessellation5PV2(WBNumTessellation):
         # bu.Item('sigma_sol_num'),
         # bu.Item('rho_sol_num'),
         bu.Item('sol_num'),
-        bu.Item('new_sol')
     )
 
     sol = tr.Property(depends_on='+GEO')
