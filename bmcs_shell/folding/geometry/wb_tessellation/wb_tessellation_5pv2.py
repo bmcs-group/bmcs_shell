@@ -67,10 +67,7 @@ class WBTessellation5PV2(WBNumTessellation):
         sol_num = self.sol_num
 
         # Solving with only 4th solution
-        if self.new_sol:
-            rhos, sigmas = self.get_3_cells_angles(sol_num=sol_num)
-        else:
-            rhos, sigmas = self.get_3_cells_angles_old(sol_num=sol_num)
+        rhos, sigmas = self.get_3_cells_angles(sol_num=sol_num)
         sol = np.array([sigmas[0], rhos[0]])
         print('Ana. solution:', sol)
         return sol
