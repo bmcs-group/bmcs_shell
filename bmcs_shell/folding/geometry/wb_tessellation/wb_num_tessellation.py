@@ -17,7 +17,7 @@ class WBNumTessellation(WBNumTessellationBase):
     )
 
     def calc_mesh_for_tessellated_cells(self):
-        # TODO: the resulting mesh_X_Ia, mesh_I_Fi are just summing up all cells, repeation deletion is needed to use
+        # TODO: the resulting mesh_X_nmIa, mesh_I_Fi are just summing up all cells, repeation deletion is needed to use
         #  it in analysis
         I_Fi = self.I_Fi
         X_Ia = self.X_Ia
@@ -29,7 +29,7 @@ class WBNumTessellation(WBNumTessellationBase):
 
         n_y, n_x = self.n_y, self.n_x
 
-        mesh_X_Ia = np.zeros((n_y, n_x, 7, 3))
+        mesh_X_nmIa = np.zeros((n_y, n_x, 7, 3))
 
         # Calculating mesh_I_Fi
         seven_mult_i = 7 * np.arange(n_x * n_y)
@@ -45,20 +45,19 @@ class WBNumTessellation(WBNumTessellationBase):
             add_bl = True  # to switch between adding bl and ul
 
             for j in range(n_x):
+                j_is_even = (j + 1) % 2 == 0
+
                 if j == 0:
-                    mesh_X_Ia[i, j, ...] = base_cell_X_Ia
-                    # self.add_cell_to_pb(pb, base_cell_X_Ia, I_Fi, '')
+                    mesh_X_nmIa[i, j, ...] = base_cell_X_Ia
                     continue
-                if (j + 1) % 2 == 0:
+                if j_is_even:
                     # Number of cell_to_add is even (add right from base cell)
                     if add_br:
                         cell_to_add = self._get_br_X_Ia(base_cell_X_Ia)
-                        mesh_X_Ia[i, j, ...] = cell_to_add
-                        # self.add_cell_to_pb(pb, cell_to_add, I_Fi, '')
+                        mesh_X_nmIa[i, j, ...] = cell_to_add
                     else:
                         cell_to_add = self._get_ur_X_Ia(base_cell_X_Ia)
-                        mesh_X_Ia[i, j, ...] = cell_to_add
-                        # self.add_cell_to_pb(pb, cell_to_add, I_Fi, '')
+                        mesh_X_nmIa[i, j, ...] = cell_to_add
                     add_br = not add_br
                     base_cell_X_Ia = next_base_cell_X_Ia
                     next_base_cell_X_Ia = cell_to_add
@@ -66,12 +65,10 @@ class WBNumTessellation(WBNumTessellationBase):
                     # Number of cell_to_add is odd (add left from base cell)
                     if add_bl:
                         cell_to_add = self._get_bl_X_Ia(base_cell_X_Ia)
-                        mesh_X_Ia[i, j, ...] = cell_to_add
-                        # self.add_cell_to_pb(pb, cell_to_add, I_Fi, '')
+                        mesh_X_nmIa[i, j, ...] = cell_to_add
                     else:
                         cell_to_add = self._get_ul_X_Ia(base_cell_X_Ia)
-                        mesh_X_Ia[i, j, ...] = cell_to_add
-                        # self.add_cell_to_pb(pb, cell_to_add, I_Fi, '')
+                        mesh_X_nmIa[i, j, ...] = cell_to_add
                     add_bl = not add_bl
                     base_cell_X_Ia = next_base_cell_X_Ia
                     next_base_cell_X_Ia = cell_to_add
@@ -89,8 +86,26 @@ class WBNumTessellation(WBNumTessellationBase):
                 next_y_base_cell_X_Ia = y_base_cell_X_Ia
                 y_base_cell_X_Ia = base_cell_X_Ia
 
-        mesh_X_Ia.reshape((n_x * n_y * 7, 3))
-        return mesh_X_Ia, mesh_I_Fi
+        indices_of_cells_to_skip = self._get_indices_of_cells_to_skip()
+
+        # TODO: here the coodinates of indicies of cells to skip are set simply to zero and not eliminated!
+        #  when exporting geometry for analysis they need to be completly eliminated
+
+        mesh_X_nmIa[-1, indices_of_cells_to_skip, :, :] = 0
+        mesh_X_Oa = mesh_X_nmIa.reshape((n_y * n_x * 7, 3))
+        return mesh_X_Oa, mesh_I_Fi
+
+    def _get_indices_of_cells_to_skip(self):
+        """ This function will return indices of the cells in the last added row which needs to be eliminated
+        in order to have a symmetric shell """
+        n_x = self.n_x
+        indices = np.concatenate((np.arange(1, n_x, 4), np.arange(2, n_x, 4)))
+        indices = np.sort(indices)
+
+        if self.n_y % 2 == 0:
+            a = np.arange(n_x)
+            indices = np.delete(a, indices)
+        return indices
 
     # Plotting ##########################################################################
 
