@@ -141,15 +141,15 @@ class WBCell5Param(WBCell, bu.InjectSymbExpr):
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=np.pi / 2, n_steps=101, continuous_update=continuous_update)),
         bu.Item('x_ur', latex=r'x^\urcorner', editor=bu.FloatRangeEditor(
-            low=-2000, high=3000, n_steps=100, continuous_update=continuous_update)),
+            low=-2000, high=3000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='a_high', n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high_name='a_high', n_steps=101, continuous_update=continuous_update)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='b_high', n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high_name='b_high', n_steps=101, continuous_update=continuous_update)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='c_high', n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high_name='c_high', n_steps=101, continuous_update=continuous_update)),
         bu.Item('y_sol1'),
         bu.Item('x_sol1'),
         *WBCell.ipw_view.content,

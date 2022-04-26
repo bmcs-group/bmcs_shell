@@ -21,15 +21,15 @@ class WBCell5ParamV2(WBCell):
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi / 2, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=np.pi / 2, n_steps=501, continuous_update=continuous_update)),
         bu.Item('beta', latex=r'\beta', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi - 1e-6, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=np.pi - 1e-6, n_steps=501, continuous_update=continuous_update)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
         *WBCell.ipw_view.content,
     )
 

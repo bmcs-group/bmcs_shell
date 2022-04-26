@@ -26,15 +26,15 @@ class WBCell5ParamV3(WBCell):
 
     ipw_view = bu.View(
         bu.Item('m', latex='m', editor=bu.FloatRangeEditor(
-            low=0, high=1, n_steps=200, continuous_update=continuous_update)),
+            low=0, high=1, n_steps=201, continuous_update=continuous_update)),
         bu.Item('l1', latex=r'l_1', editor=bu.FloatRangeEditor(
-            low=0, high=2000, n_steps=500, continuous_update=continuous_update)),
+            low=0, high=2000, n_steps=501, continuous_update=continuous_update)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=100, continuous_update=continuous_update)),
+            low=1e-6, high=2000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('sol_index', latex='sol_{index}', editor=bu.IntRangeEditor(
             low=0, high=1, n_steps=1, continuous_update=continuous_update)),
         bu.Item('yro_sign'),

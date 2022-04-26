@@ -31,13 +31,6 @@ class WBNumTessellation(WBNumTessellationBase):
 
         mesh_X_nmIa = np.zeros((n_y, n_x, 7, 3))
 
-        # Calculating mesh_I_Fi
-        seven_mult_i = 7 * np.arange(n_x * n_y)
-        seven_mult_Iab = seven_mult_i[:, np.newaxis, np.newaxis] + np.zeros((n_x * n_y, 6, 3), dtype=np.int32)
-        mesh_I_Fi = np.full((n_x * n_y, 6, 3), I_Fi)
-        mesh_I_Fi = mesh_I_Fi + seven_mult_Iab
-        mesh_I_Fi.reshape((n_x * n_y * 6, 3))
-
         for i in range(n_y):
             i_row_is_even = (i + 1) % 2 == 0
 
@@ -90,9 +83,16 @@ class WBNumTessellation(WBNumTessellationBase):
 
         # TODO: here the coodinates of indicies of cells to skip are set simply to zero and not eliminated!
         #  when exporting geometry for analysis they need to be completly eliminated
-
         mesh_X_nmIa[-1, indices_of_cells_to_skip, :, :] = 0
         mesh_X_Oa = mesh_X_nmIa.reshape((n_y * n_x * 7, 3))
+
+        # Calculating mesh_I_Fi
+        seven_mult_i = 7 * np.arange(n_x * n_y)
+        seven_mult_Iab = seven_mult_i[:, np.newaxis, np.newaxis] + np.zeros((n_x * n_y, 6, 3), dtype=np.int32)
+        mesh_I_Fi = np.full((n_x * n_y, 6, 3), I_Fi)
+        mesh_I_Fi = mesh_I_Fi + seven_mult_Iab
+        mesh_I_Fi.reshape((n_x * n_y * 6, 3))
+
         return mesh_X_Oa, mesh_I_Fi
 
     def _get_indices_of_cells_to_skip(self):

@@ -14,7 +14,12 @@ import time
 class WBTessellation4P(bu.Model):
     name = 'WB Tessellation 4P'
 
-    wb_cell = bu.Instance(WBCell4Param, ())
+    wb_cell = bu.Instance(WBCell4Param)
+
+    def _wb_cell_default(self):
+        wb_cell = WBCell4Param()
+        self.update_wb_cell_params(wb_cell)
+        return wb_cell
 
     tree = ['wb_cell']
 
@@ -39,7 +44,10 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
-        self.wb_cell.trait_set(
+        self.update_wb_cell_params(self.wb_cell)
+
+    def update_wb_cell_params(self, wb_cell):
+        wb_cell.trait_set(
             gamma=self.gamma,
             a=self.a,
             a_high=self.a_high,
@@ -236,6 +244,7 @@ class WBTessellation4P(bu.Model):
         return I_CDij_map
 
     def setup_plot(self, pb):
+        self.pb = pb
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
 
