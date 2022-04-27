@@ -12,18 +12,31 @@ class WBCell5ParamV2(WBCell):
     plot_backend = 'k3d'
 
     gamma = bu.Float(np.pi / 6, GEO=True)
-    beta = bu.Float(np.pi / 3, GEO=True)
     a = bu.Float(500, GEO=True)
     b = bu.Float(750, GEO=True)
     c = bu.Float(400, GEO=True)
+    # beta = bu.Float(np.pi / 3, GEO=True)
+    beta = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_beta(self):
+        return round(self.beta_1 + self.beta_0, 8)
+
+    beta_1 = bu.Float(0, GEO=True)
+    beta_0 = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_beta_0(self):
+        """ This is the value of beta that makes the cell symmetric, derived in wb_cell_4p_deriving_beta_0.ipynb"""
+        return np.arccos(self.a * (1 - 2 * sin(self.gamma)) / sqrt(self.a ** 2 + self.b ** 2))
 
     continuous_update = True
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=501, continuous_update=continuous_update)),
-        bu.Item('beta', latex=r'\beta', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi - 1e-6, n_steps=501, continuous_update=continuous_update)),
+        # bu.Item('beta', latex=r'\beta', editor=bu.FloatRangeEditor(
+        #     low=1e-6, high=np.pi - 1e-6, n_steps=501, continuous_update=continuous_update)),
+        bu.Item('beta_1', latex=r'\beta_1', editor=bu.FloatRangeEditor(
+            low=-4, high=4, n_steps=501, continuous_update=continuous_update)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
             low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(

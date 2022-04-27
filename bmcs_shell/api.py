@@ -7,7 +7,7 @@ from bmcs_shell.folding.analysis.fets2d_mitc import FETS2DMITC
 from bmcs_shell.folding.analysis.fem.xdomain_fe_grid import XDomainFE
 from bmcs_shell.folding.analysis.wb_fets2d3u1m_fe import FETS2D3U1M
 from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import WBCell4Param
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import WBCell4Param, WBCellSymb4Param
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p import WBCell5Param
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p import WBCellSymb5ParamXL
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v2 import WBCell5ParamV2
