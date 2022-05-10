@@ -19,13 +19,13 @@ class WBCell5ParamV2(WBCell):
     beta = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_beta(self):
-        return round(self.beta_1 + self.beta_0, 8)
+        return round(self.beta_sym + self.delta_beta, 8)
 
-    beta_1 = bu.Float(0, GEO=True)
-    beta_0 = tr.Property(depends_on='+GEO')
+    delta_beta = bu.Float(0, GEO=True) # delta_beta
+    beta_sym = tr.Property(depends_on='+GEO') # beta_sym
     @tr.cached_property
-    def _get_beta_0(self):
-        """ This is the value of beta that makes the cell symmetric, derived in wb_cell_4p_deriving_beta_0.ipynb"""
+    def _get_beta_sym(self):
+        """ This is the value of beta that makes the cell symmetric, derived in wb_cell_4p_deriving_beta_sym.ipynb"""
         return np.arccos(self.a * (1 - 2 * sin(self.gamma)) / sqrt(self.a ** 2 + self.b ** 2))
 
     continuous_update = True
@@ -35,8 +35,8 @@ class WBCell5ParamV2(WBCell):
             low=1e-6, high=np.pi / 2, n_steps=501, continuous_update=continuous_update)),
         # bu.Item('beta', latex=r'\beta', editor=bu.FloatRangeEditor(
         #     low=1e-6, high=np.pi - 1e-6, n_steps=501, continuous_update=continuous_update)),
-        bu.Item('beta_1', latex=r'\beta_1', editor=bu.FloatRangeEditor(
-            low=-4, high=4, n_steps=501, continuous_update=continuous_update)),
+        bu.Item('delta_beta', latex=r'\Delta\beta', editor=bu.FloatRangeEditor(
+            low=-3, high=3, n_steps=601, continuous_update=continuous_update)),
         bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
             low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(

@@ -37,7 +37,8 @@ class WBTessellationBase(bu.Model):
     @tr.observe('wb_cell_.+GEO', post_init=True)
     def update_after_wb_cell_GEO_changes(self, event):
         self.event_geo = not self.event_geo
-        self.update_plot(self.pb)
+        if hasattr(self, 'pb'):
+            self.update_plot(self.pb)
 
     ipw_view = bu.View(
         bu.Item('wb_cell'),
