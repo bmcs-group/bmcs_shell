@@ -20,6 +20,8 @@ class WBTessellationBase(bu.Model):
 
     plot_backend = 'k3d'
 
+    wireframe_width = bu.Float(15)
+
     # show_wireframe = bu.Bool(True, GEO=True)
     show_node_labels = bu.Bool(False, GEO=True)
     wb_cell = bu.EitherType(options=[('WBCell4Param', WBCell4Param),
@@ -43,6 +45,7 @@ class WBTessellationBase(bu.Model):
     ipw_view = bu.View(
         bu.Item('wb_cell'),
         # bu.Item('show_wireframe'),
+        bu.Item('wireframe_width'),
         bu.Item('show_node_labels'),
     )
 
@@ -148,9 +151,10 @@ class WBTessellationBase(bu.Model):
                 texts.append(k3d_text)
             self.k3d_labels[obj_name] = texts
 
-        wb_mesh_wireframe = k3d.mesh(X_Ia.astype(np.float32),
+        wb_mesh_wireframe = k3d.lines(X_Ia.astype(np.float32),
                                      I_Fi.astype(np.uint32),
+                                      shader = 'mesh',
                                      color=0x000000,
-                                     wireframe=True)
+                                     width=self.wireframe_width)
         plot += wb_mesh_wireframe
         self.k3d_wireframe[obj_name] = wb_mesh_wireframe

@@ -124,5 +124,6 @@ class WBNumTessellation(WBNumTessellationBase):
             self.k3d_mesh['wb_tess_mesh'].indices = I_Fi
             self.k3d_wireframe['wb_tess_mesh'].vertices = X_Ia
             self.k3d_wireframe['wb_tess_mesh'].indices = I_Fi
+            self.k3d_wireframe['wb_tess_mesh'].width = self.wireframe_width
         else:
             self.setup_plot(pb)

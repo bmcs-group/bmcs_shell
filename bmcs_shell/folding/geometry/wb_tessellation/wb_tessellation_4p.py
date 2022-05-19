@@ -35,6 +35,7 @@ class WBTessellation4P(bu.Model):
     c = bu.Float(1000, GEO=True)
     c_high = bu.Float(2000)
 
+    wireframe_width = bu.Float(15)
     show_wireframe = bu.Bool(True, GEO=True)
     show_nodes = bu.Bool(False, GEO=True)
     show_node_labels = bu.Bool(False, GEO=True)
@@ -295,6 +296,7 @@ class WBTessellation4P(bu.Model):
         if self.show_wireframe:
             if self.WIREFRAME in pb.objects:
                 wireframe = pb.objects[self.WIREFRAME]
+                wireframe.width = self.wireframe_width
                 wireframe.vertices = X_Ia
                 wireframe.indices = I_Fi
             else:
@@ -320,10 +322,11 @@ class WBTessellation4P(bu.Model):
         pb.objects[self.NODES_LABELS] = text_list
 
     def _add_wireframe_to_fig(self, pb, X_Ia, I_Fi):
-        k3d_mesh_wireframe = k3d.mesh(X_Ia,
+        k3d_mesh_wireframe = k3d.lines(X_Ia,
                                       I_Fi,
+                                    shader='mesh',
                                       color=0x000000,
-                                      wireframe=True)
+                                      width=self.wireframe_width)
         pb.plot_fig += k3d_mesh_wireframe
         pb.objects[self.WIREFRAME] = k3d_mesh_wireframe
 

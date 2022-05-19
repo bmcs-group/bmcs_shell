@@ -12,6 +12,8 @@ class WBCell(bu.Model):
     K3D_WIREFRAME = 'wireframe'
     K3D_CELL_MESH = 'cell_mesh'
 
+    wireframe_width = bu.Float(15)
+
     show_base_cell_ui = bu.Bool(True)
     show_node_labels = bu.Bool(False, GEO=True)
     show_wireframe = bu.Bool(True, GEO=True)
@@ -20,6 +22,7 @@ class WBCell(bu.Model):
     ipw_view = bu.View(
         bu.Item('show_node_labels'),
         bu.Item('show_wireframe'),
+        bu.Item('wireframe_width'),
     ) if show_base_cell_ui else bu.View()
 
     X_Ia = tr.Property(depends_on='+GEO')
@@ -70,6 +73,7 @@ class WBCell(bu.Model):
             if self.show_wireframe:
                 if self.K3D_WIREFRAME in pb.objects:
                     wireframe = pb.objects[self.K3D_WIREFRAME]
+                    wireframe.width = self.wireframe_width
                     wireframe.vertices = X_Ia
                     wireframe.indices = I_Fi
                 else:
@@ -87,10 +91,11 @@ class WBCell(bu.Model):
                     pb.clear_object(self.K3D_NODES_LABELS)
 
     def _add_wireframe_to_fig(self, pb, X_Ia, I_Fi):
-        k3d_mesh_wireframe = k3d.mesh(X_Ia,
+        k3d_mesh_wireframe = k3d.lines(X_Ia,
                                       I_Fi,
-                                      color=0x000000,
-                                      wireframe=True)
+                                      shader='mesh',
+                                      width=self.wireframe_width,
+                                      color=0x000000)
         pb.plot_fig += k3d_mesh_wireframe
         pb.objects[self.K3D_WIREFRAME] = k3d_mesh_wireframe
 
