@@ -12,7 +12,7 @@ class WBCell(bu.Model):
     K3D_WIREFRAME = 'wireframe'
     K3D_CELL_MESH = 'cell_mesh'
 
-    wireframe_width = bu.Float(15)
+    wireframe_width = bu.Float(5)
 
     show_base_cell_ui = bu.Bool(True)
     show_node_labels = bu.Bool(False, GEO=True)
@@ -45,6 +45,7 @@ class WBCell(bu.Model):
         return np.array([[0, 1, 2], [0, 3, 4], [0, 1, 5], [0, 5, 3], [0, 2, 6], [0, 6, 4]]).astype(np.int32)
 
     def setup_plot(self, pb):
+        k3d.plot().fetch_screenshot()
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
         cell_mesh = k3d.mesh(X_Ia, I_Fi,

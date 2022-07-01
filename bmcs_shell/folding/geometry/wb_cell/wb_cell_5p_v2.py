@@ -12,9 +12,25 @@ class WBCell5ParamV2(WBCell):
     plot_backend = 'k3d'
 
     gamma = bu.Float(np.pi / 6, GEO=True)
+
+    eta = bu.Float(1.5, GEO=True) # b/a
+    zeta = bu.Float(0.8, GEO=True) # c/a
+
     a = bu.Float(500, GEO=True)
-    b = bu.Float(750, GEO=True)
-    c = bu.Float(400, GEO=True)
+
+    b = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_b(self):
+        return self.eta * self.a if self.eta * self.a != 0 else 0.0001
+
+    c = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_c(self):
+        return self.zeta * self.a if self.zeta * self.a != 0 else 0.0001
+
+    # a = bu.Float(500, GEO=True)
+    # b = bu.Float(750, GEO=True)
+    # c = bu.Float(400, GEO=True)
     # beta = bu.Float(np.pi / 3, GEO=True)
     beta = tr.Property(depends_on='+GEO')
     @tr.cached_property
@@ -37,12 +53,16 @@ class WBCell5ParamV2(WBCell):
         #     low=1e-6, high=np.pi - 1e-6, n_steps=501, continuous_update=continuous_update)),
         bu.Item('delta_beta', latex=r'\Delta\beta', editor=bu.FloatRangeEditor(
             low=-3, high=3, n_steps=601, continuous_update=continuous_update)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
-            low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
+        # bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
+        #     low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
+        # bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
+        #     low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
+        # bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
+        #     low=1e-6, high=2000, n_steps=201, continuous_update=continuous_update)),
+        bu.Item('eta', latex='\eta', editor=bu.FloatRangeEditor(
+            low=0, high=50, n_steps=1001, continuous_update=continuous_update)),
+        bu.Item('zeta', latex='\zeta', editor=bu.FloatRangeEditor(
+            low=0, high=50, n_steps=1001, continuous_update=continuous_update)),
         *WBCell.ipw_view.content,
     )
 

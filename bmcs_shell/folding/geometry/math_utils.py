@@ -8,6 +8,8 @@ import numpy as np
 # R = 3x3 rotation matrix
 # t = 3x1 column vector
 def get_best_rot_and_trans_3d(A, B):
+    # TODO: check scipy scipy.spatial.transform.Rotation.align_vectors (# Rotation.align_vectors()), it's the same thing
+
     assert A.shape == B.shape
 
     num_rows, num_cols = A.shape
