@@ -43,7 +43,9 @@ class WBTessellation4P(bu.Model):
     NODES = 'k3d_nodes'
     NODES_LABELS = 'k3d_nodes_labels'
 
-    trim_ext_facets = bu.Bool(False, GEO=True)
+    trim_half_cells_along_y = bu.Bool(False, GEO=True)
+    trim_half_cells_along_x = bu.Bool(False, GEO=True)
+    align_outer_nodes_along_x = bu.Bool(False, GEO=True)
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -68,7 +70,9 @@ class WBTessellation4P(bu.Model):
         # bu.Item('show_wireframe'),
         # bu.Item('show_node_labels'),
         bu.Item('show_nodes'),
-        bu.Item('trim_ext_facets'),
+        bu.Item('trim_half_cells_along_y'),
+        bu.Item('trim_half_cells_along_x'),
+        bu.Item('align_outer_nodes_along_x'),
     )
 
     def get_phi_range(self, delta_phi):
@@ -178,7 +182,22 @@ class WBTessellation4P(bu.Model):
     @tr.cached_property
     def _get_X_Ia(self):
         idx_unique, idx_remap = self.unique_node_map
-        return self.X_cells_Ia[idx_unique]
+        X_Ia = self.X_cells_Ia[idx_unique]
+
+        if self.align_outer_nodes_along_x:
+            _, cells_out_xyfi = self.cells_in_out_xyfi
+            X_Ia[cells_out_xyfi[-1, :, 1, 1]] = (X_Ia[cells_out_xyfi[-1, :, 1, 1]] + X_Ia[
+                cells_out_xyfi[-1, :, 1, 2]]) / 2
+            X_Ia[cells_out_xyfi[0, :, 1, 2]] = (X_Ia[cells_out_xyfi[0, :, 1, 1]] + X_Ia[cells_out_xyfi[0, :, 1, 2]]) / 2
+
+        return X_Ia
+
+    I_Fi_ = tr.Property(depends_on='+GEO')
+    '''Facet - node mapping
+    '''
+    def _get_I_Fi_(self):
+        _, idx_remap = self.unique_node_map
+        return idx_remap[self.I_cells_Fi]
 
     I_Fi = tr.Property(depends_on='+GEO')
     '''Facet - node mapping
@@ -188,25 +207,56 @@ class WBTessellation4P(bu.Model):
         _, idx_remap = self.unique_node_map
         I_Fi = idx_remap[self.I_cells_Fi]
 
-        if self.trim_ext_facets:
-            n_x_real = 2 * self.n_x_plus - 1
-            n_y_real = self.n_phi_plus
-            n_x_in = int(n_x_real / 2)
-            n_x_out = n_x_in + 1
-            cell_i_pos = [n_x_in * (n_y_real - 1) + i * n_y_real for i in range(n_x_out)]
-            cell_i_neg = [n_x_in * (n_y_real - 1) + n_y_real - 1 + i * n_y_real for i in range(n_x_out)]
+        if self.trim_half_cells_along_y or self.trim_half_cells_along_x:
+            cells_in_xyfi_, cells_out_xyfi_ = self.cells_in_out_xyfi
+            cells_in_xyfi = np.copy(cells_in_xyfi_)
+            cells_out_xyfi = np.copy(cells_out_xyfi_)
 
-            facets_num = I_Fi.shape[0]
-            cells_num = int(facets_num / 6)
-            facet_indices_to_delete_pos = np.arange(facets_num).reshape(cells_num, 6)[cell_i_pos][:,
-                                          (0, 2, 4)].flatten()
-            facet_indices_to_delete_neg = np.arange(facets_num).reshape(cells_num, 6)[cell_i_neg][:,
-                                          (1, 3, 5)].flatten()
-            facet_indices_to_delete = np.concatenate((facet_indices_to_delete_pos, facet_indices_to_delete_neg))
-            remaining_indices = np.delete(np.arange(facets_num), facet_indices_to_delete)
+            if self.trim_half_cells_along_y:
+                # Set extended facets to -1 indicies (to mark it for later removal)
+                cells_out_xyfi[:, 0, (0, 2, 4), :] = -1
+                cells_out_xyfi[:, -1, (1, 3, 5), :] = -1
+            if self.trim_half_cells_along_x:
+                # Remove half cells along x
+                cells_out_xyfi[0, :, (4, 5), :] = -1
+                cells_out_xyfi[-1, :, (2, 3), :] = -1
 
-            I_Fi = I_Fi[remaining_indices]
+            # Delete extended facets
+            F_ni = np.vstack((cells_in_xyfi.reshape((-1, 3)), cells_out_xyfi.reshape((-1, 3))))
+            F_m = F_ni.flatten()
+            F_ni = np.delete(F_m, np.where(F_m == -1)).reshape((-1, 3))
+            I_Fi = F_ni
+
         return I_Fi
+
+    cells_in_out_xyfi = tr.Property(depends_on='+GEO')
+    ''' Convience indexing for outer and inner cells in a tessellation'''
+    @tr.cached_property
+    def _get_cells_in_out_xyfi(self):
+        I_Fi = self.I_Fi_
+        facets_num = I_Fi.shape[0]
+        cells_num = int(facets_num / 6)
+        F_cfi = I_Fi.reshape((cells_num, 6, 3))  # c cell index, f facet index, i indices of facet's nodes
+
+        n_x_real = 2 * self.n_x_plus - 1
+        n_y_real = self.n_phi_plus
+        n_x_in = int(n_x_real / 2)
+        n_x_out = n_x_in + 1
+        n_y_in = n_y_real - 1
+        n_y_out = n_y_real
+        cells_num_in = n_x_in * n_y_in
+        cells_num_out = n_x_out * n_y_out
+        cells_in_indices = np.arange(cells_num_in)
+        cells_out_indices = np.arange(cells_num_in, cells_num)
+
+        cells_out_cfi = F_cfi[cells_out_indices]
+        cells_out_xyfi = cells_out_cfi.reshape((n_x_out, n_y_out, 6, 3))
+        cells_in_cfi = F_cfi[cells_in_indices]
+        cells_in_xyfi = cells_in_cfi.reshape((n_x_in, n_y_in, 6, 3))
+
+        # Do whatever you want on outer or inner cells cells_out_xyfi, cells_in_xyfi in
+        # this convenient indexing, then join them
+        return cells_in_xyfi, cells_out_xyfi
 
     node_match_threshold = tr.Property(depends_on='+GEO')
 
