@@ -21,3 +21,5 @@ from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_invest impo
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation import WBNumTessellation
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_5pv2 import WBTessellation5PV2
 from bmcs_shell.folding.analysis.abaqus.abaqus_link_simple import AbaqusLink
+from bmcs_shell.folding.geometry.wb_param_designer import WbParamDesigner
+from bmcs_shell.folding.geometry.wb_geo_utils import WBGeoUtils

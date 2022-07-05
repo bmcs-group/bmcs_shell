@@ -43,6 +43,8 @@ class WBTessellation4P(bu.Model):
     NODES = 'k3d_nodes'
     NODES_LABELS = 'k3d_nodes_labels'
 
+    trim_ext_facets = bu.Bool(False, GEO=True)
+
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
         self.update_wb_cell_params(self.wb_cell)
@@ -66,6 +68,7 @@ class WBTessellation4P(bu.Model):
         # bu.Item('show_wireframe'),
         # bu.Item('show_node_labels'),
         bu.Item('show_nodes'),
+        bu.Item('trim_ext_facets'),
     )
 
     def get_phi_range(self, delta_phi):
@@ -183,7 +186,27 @@ class WBTessellation4P(bu.Model):
     @tr.cached_property
     def _get_I_Fi(self):
         _, idx_remap = self.unique_node_map
-        return idx_remap[self.I_cells_Fi]
+        I_Fi = idx_remap[self.I_cells_Fi]
+
+        if self.trim_ext_facets:
+            n_x_real = 2 * self.n_x_plus - 1
+            n_y_real = self.n_phi_plus
+            n_x_in = int(n_x_real / 2)
+            n_x_out = n_x_in + 1
+            cell_i_pos = [n_x_in * (n_y_real - 1) + i * n_y_real for i in range(n_x_out)]
+            cell_i_neg = [n_x_in * (n_y_real - 1) + n_y_real - 1 + i * n_y_real for i in range(n_x_out)]
+
+            facets_num = I_Fi.shape[0]
+            cells_num = int(facets_num / 6)
+            facet_indices_to_delete_pos = np.arange(facets_num).reshape(cells_num, 6)[cell_i_pos][:,
+                                          (0, 2, 4)].flatten()
+            facet_indices_to_delete_neg = np.arange(facets_num).reshape(cells_num, 6)[cell_i_neg][:,
+                                          (1, 3, 5)].flatten()
+            facet_indices_to_delete = np.concatenate((facet_indices_to_delete_pos, facet_indices_to_delete_neg))
+            remaining_indices = np.delete(np.arange(facets_num), facet_indices_to_delete)
+
+            I_Fi = I_Fi[remaining_indices]
+        return I_Fi
 
     node_match_threshold = tr.Property(depends_on='+GEO')
 
