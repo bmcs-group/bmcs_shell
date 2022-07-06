@@ -185,11 +185,9 @@ class WBTessellation4P(bu.Model):
         X_Ia = self.X_cells_Ia[idx_unique]
 
         if self.align_outer_nodes_along_x:
-            _, cells_out_xyfi = self.cells_in_out_xyfi
-            X_Ia[cells_out_xyfi[-1, :, 1, 1]] = (X_Ia[cells_out_xyfi[-1, :, 1, 1]] + X_Ia[
-                cells_out_xyfi[-1, :, 1, 2]]) / 2
-            X_Ia[cells_out_xyfi[0, :, 1, 2]] = (X_Ia[cells_out_xyfi[0, :, 1, 1]] + X_Ia[cells_out_xyfi[0, :, 1, 2]]) / 2
-
+            _, cells_out_xyj = self.cells_in_out_xyj
+            X_Ia[cells_out_xyj[-1, :, 3]] = (X_Ia[cells_out_xyj[-1, :, 3]] + X_Ia[cells_out_xyj[-1, :, 4]]) / 2
+            X_Ia[cells_out_xyj[0, :, 4]] = (X_Ia[cells_out_xyj[0, :, 3]] + X_Ia[cells_out_xyj[0, :, 4]]) / 2
         return X_Ia
 
     I_Fi_ = tr.Property(depends_on='+GEO')
@@ -222,22 +220,43 @@ class WBTessellation4P(bu.Model):
                 cells_out_xyfi[-1, :, (2, 3), :] = -1
 
             # Delete extended facets
-            F_ni = np.vstack((cells_in_xyfi.reshape((-1, 3)), cells_out_xyfi.reshape((-1, 3))))
-            F_m = F_ni.flatten()
-            F_ni = np.delete(F_m, np.where(F_m == -1)).reshape((-1, 3))
-            I_Fi = F_ni
+            I_Fi = np.vstack((cells_in_xyfi.reshape((-1, 3)), cells_out_xyfi.reshape((-1, 3))))
+            F_m = I_Fi.flatten()
+            I_Fi = np.delete(F_m, np.where(F_m == -1)).reshape((-1, 3))
 
         return I_Fi
 
     cells_in_out_xyfi = tr.Property(depends_on='+GEO')
-    ''' Convience indexing for outer and inner cells in a tessellation'''
+    ''' Convenience indexing for inner and outer cells in the tessellation where (x, y cell index along x and y; 
+    f for cell facet; i facet nodes indices)'''
     @tr.cached_property
     def _get_cells_in_out_xyfi(self):
-        I_Fi = self.I_Fi_
-        facets_num = I_Fi.shape[0]
-        cells_num = int(facets_num / 6)
-        F_cfi = I_Fi.reshape((cells_num, 6, 3))  # c cell index, f facet index, i indices of facet's nodes
+        F_cfi = self.F_cfi
+        n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices = self.cells_in_out_info
+        cells_out_cfi = F_cfi[cells_out_indices]
+        cells_out_xyfi = cells_out_cfi.reshape((n_x_out, n_y_out, 6, 3))
+        cells_in_cfi = F_cfi[cells_in_indices]
+        cells_in_xyfi = cells_in_cfi.reshape((n_x_in, n_y_in, 6, 3))
+        return cells_in_xyfi, cells_out_xyfi
 
+    cells_in_out_xyj = tr.Property(depends_on='+GEO')
+    ''' Convenience indexing for inner and outer cells in the tessellation where (x, y cell index along x and y; 
+    j is cell nodes indices in order)'''
+    @tr.cached_property
+    def _get_cells_in_out_xyj(self):
+        F_cfi = self.F_cfi
+        n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices = self.cells_in_out_info
+        I_cj = np.unique(F_cfi.reshape((F_cfi.shape[0], -1)), axis=1)
+        cells_out_cj = I_cj[cells_out_indices]
+        cells_in_cj = I_cj[cells_in_indices]
+        cells_out_xyj = cells_out_cj.reshape((n_x_out, n_y_out, 7))
+        cells_in_xyj = cells_in_cj.reshape((n_x_in, n_y_in, 7))
+        return cells_in_xyj, cells_out_xyj
+
+    cells_in_out_info = tr.Property(depends_on='+GEO')
+    ''' n_x_in, n_x_out, n_y_in, n_y_out are number of inner and outer cells along x and y'''
+    @tr.cached_property
+    def _get_cells_in_out_info(self):
         n_x_real = 2 * self.n_x_plus - 1
         n_y_real = self.n_phi_plus
         n_x_in = int(n_x_real / 2)
@@ -247,16 +266,17 @@ class WBTessellation4P(bu.Model):
         cells_num_in = n_x_in * n_y_in
         cells_num_out = n_x_out * n_y_out
         cells_in_indices = np.arange(cells_num_in)
-        cells_out_indices = np.arange(cells_num_in, cells_num)
+        cells_out_indices = np.arange(cells_num_in, cells_num_in + cells_num_out)
+        return n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices
 
-        cells_out_cfi = F_cfi[cells_out_indices]
-        cells_out_xyfi = cells_out_cfi.reshape((n_x_out, n_y_out, 6, 3))
-        cells_in_cfi = F_cfi[cells_in_indices]
-        cells_in_xyfi = cells_in_cfi.reshape((n_x_in, n_y_in, 6, 3))
+    F_cfi = tr.Property(depends_on='+GEO')
+    ''' Convenience indexing where (c cell index, f facet index, i indices of facet's nodes)'''
+    @tr.cached_property
+    def _get_F_cfi(self):
+        # c cell index, f facet index, i indices of facet's nodes
+        I_Fi = self.I_Fi_
+        return I_Fi.reshape((self.n_cells, 6, 3))
 
-        # Do whatever you want on outer or inner cells cells_out_xyfi, cells_in_xyfi in
-        # this convenient indexing, then join them
-        return cells_in_xyfi, cells_out_xyfi
 
     node_match_threshold = tr.Property(depends_on='+GEO')
 
