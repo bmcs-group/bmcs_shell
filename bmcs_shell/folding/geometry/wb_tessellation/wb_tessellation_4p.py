@@ -183,7 +183,6 @@ class WBTessellation4P(bu.Model):
     def _get_X_Ia(self):
         idx_unique, idx_remap = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
-
         if self.align_outer_nodes_along_x:
             _, cells_out_xyj = self.cells_in_out_xyj
             X_Ia[cells_out_xyj[-1, :, 3]] = (X_Ia[cells_out_xyj[-1, :, 3]] + X_Ia[cells_out_xyj[-1, :, 4]]) / 2
@@ -276,7 +275,6 @@ class WBTessellation4P(bu.Model):
         # c cell index, f facet index, i indices of facet's nodes
         I_Fi = self.I_Fi_
         return I_Fi.reshape((self.n_cells, 6, 3))
-
 
     node_match_threshold = tr.Property(depends_on='+GEO')
 

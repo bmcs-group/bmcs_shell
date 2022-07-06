@@ -11,6 +11,10 @@ from matplotlib import cm
 from scipy.interpolate import interp1d
 
 
+def round_to(value, base=5):
+    return base * round(value / base)
+
+
 class WbParamDesigner(bu.Model):
     n = bu.Int(50)
     rand_color = bu.Array
@@ -80,7 +84,7 @@ class WbParamDesigner(bu.Model):
 
                         wbt4p.trait_set(b=eta * a, c=zeta * a)
 
-                        self.var1_grid_agnn[a_i, gamma_i, i_eta, j_zeta] = self.get_var_value(var1, wbt4p, n_mid_cells)
+                        self.var1_grid_agnn[a_i, gamma_i, i_eta, j_zeta] = self.get_var_value(var1, wbt4p)
 
                 # Find contour line corresponding to the variable value
                 # -------------------------------------------------------
@@ -93,7 +97,7 @@ class WbParamDesigner(bu.Model):
                 var2_array = []
                 for eta, zeta in zip(self.eta_of_var1[a_i][gamma_i], self.zeta_of_var1[a_i][gamma_i]):
                     wbt4p.trait_set(b=eta * a, c=zeta * a)
-                    var2_array.append(self.get_var_value(var2, wbt4p, n_mid_cells))
+                    var2_array.append(self.get_var_value(var2, wbt4p))
 
                 ax_h.plot(self.eta_of_var1[a_i][gamma_i], var2_array, '--', label='eta, $\gamma$=' + str(round(gamma, 1)), color=color)
                 ax_h.plot(self.zeta_of_var1[a_i][gamma_i], var2_array, label='zeta, $\gamma$=' + str(round(gamma, 1)), color=color)
@@ -106,14 +110,22 @@ class WbParamDesigner(bu.Model):
 
             valid_var1_2_params = np.array(valid_var1_2_params)
 
-            var3_array = []
-            for params in valid_var1_2_params:
-                a, gamma, eta, zeta = params
-                wbt4p.trait_set(a=a, b=eta * a, c=zeta * a, gamma=np.deg2rad(gamma))
-                var3_array.append(self.get_var_value(var3, wbt4p, n_mid_cells))
-
-            gamma, eta, zeta = [self.interp1(var3['value'], var3_array, valid_var1_2_params[:, i]) for i in [1, 2, 3]]
-            self.valid_params.append(dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
+            if var3 is None:
+                print(valid_var1_2_params)
+                valid_params_for_current_a = [
+                    dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1)
+                    for a, gamma, eta, zeta in valid_var1_2_params]
+                self.valid_params.append(valid_params_for_current_a)
+            else:
+                var3_array = []
+                for params in valid_var1_2_params:
+                    a, gamma, eta, zeta = params
+                    wbt4p.trait_set(a=a, b=eta * a, c=zeta * a, gamma=np.deg2rad(gamma))
+                    var3_array.append(self.get_var_value(var3, wbt4p))
+                gamma, eta, zeta = [self.interp1(var3['value'], var3_array, valid_var1_2_params[:, i]) for i in
+                                    [1, 2, 3]]
+                self.valid_params.append(
+                    dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
 
         ax_h.legend()
 
@@ -124,31 +136,36 @@ class WbParamDesigner(bu.Model):
 
         return self.valid_params
 
-
-    def get_span(self, wb_shell, n_mid_cells=2):
-        if n_mid_cells == 2:
-            span_v = wb_shell.X_Ia[8] - wb_shell.X_Ia[1]
-        elif n_mid_cells == 3:
-            span_v = wb_shell.X_Ia[13] - wb_shell.X_Ia[1]
-        elif n_mid_cells == 4:
-            span_v = wb_shell.X_Ia[18] - wb_shell.X_Ia[1]
-        elif n_mid_cells == 5:
-            span_v = wb_shell.X_Ia[23] - wb_shell.X_Ia[1]
+    # These span, height and width function works for WBTessellation4P and the calculations consider the shell
+    #  after applying the trimming of half cells along y and x and after aligning (see WBTessellation4P)
+    def get_span(self, wb_shell):
+        X_Ia = wb_shell.X_Ia
+        cells_in_xyj, cells_out_xyj = wb_shell.cells_in_out_xyj
+        mid_right_edge = (X_Ia[cells_out_xyj[0, 0, 0]] + X_Ia[cells_out_xyj[0, 0, 5]]) / 2
+        mid_left_edge = (X_Ia[cells_out_xyj[0, -1, 0]] + X_Ia[cells_out_xyj[0, -1, 5]]) / 2
+        span_v = mid_right_edge - mid_left_edge
         return np.sqrt(span_v @ span_v)
 
-    def get_shell_height(self, wb_shell, n_mid_cells=2):
-        if n_mid_cells == 2:
-            return wb_shell.X_Ia[3][2] - wb_shell.X_Ia[8][2]
-        elif n_mid_cells == 3:
-            return wb_shell.X_Ia[10][2] - wb_shell.X_Ia[13][2]
-        elif n_mid_cells == 4:
-            return wb_shell.X_Ia[8][2] - wb_shell.X_Ia[18][2]
-        elif n_mid_cells == 5:
-            return wb_shell.X_Ia[15][2] - wb_shell.X_Ia[23][2]
+    # Shell total height (rise) averaged from the edges of side and middle waterbomb cells (h=0 corresponds to
+    # flat folded shell)
+    def get_shell_height(self, wb_shell):
+        X_Ia = wb_shell.X_Ia
+        cells_in_xyj, cells_out_xyj = wb_shell.cells_in_out_xyj
+        z_mid_right_edge = ((X_Ia[cells_out_xyj[0, 0, 0]] + X_Ia[cells_out_xyj[0, 0, 5]]) / 2)[2]
+        _, _, n_y_in, n_y_out, _, _ = wb_shell.cells_in_out_info
+        if n_y_out % 2 == 0:
+            y_mid_cell_i = int(n_y_in / 2)
+            z_mid_mid_edge = ((X_Ia[cells_in_xyj[0, y_mid_cell_i, 0]] + X_Ia[cells_in_xyj[0, y_mid_cell_i, 5]]) / 2)[2]
+        else:
+            y_mid_cell_i = int(n_y_out / 2)
+            z_mid_mid_edge = ((X_Ia[cells_out_xyj[0, y_mid_cell_i, 0]] + X_Ia[cells_out_xyj[0, y_mid_cell_i, 5]]) / 2)[
+                2]
+        return z_mid_mid_edge - z_mid_right_edge
 
-    def get_shell_width(self, wb_shell, n_mid_cells=2):
-        # width of two cells (one cell in mid and two halves to sides)
-        span_v = wb_shell.X_Ia[32 + (n_mid_cells - 2) * 8] - wb_shell.X_Ia[20 + (n_mid_cells - 2) * 5]
+    def get_shell_width(self, wb_shell):
+        X_Ia = wb_shell.X_Ia
+        _, cells_out_xyj = wb_shell.cells_in_out_xyj
+        span_v = X_Ia[cells_out_xyj[0, 0, 0]] - X_Ia[cells_out_xyj[-1, 0, 0]]
         return np.sqrt(span_v @ span_v)
 
     def interp(self, interp_value, values, etas, zetas):
@@ -171,13 +188,13 @@ class WbParamDesigner(bu.Model):
         finally:
             return y_inter
 
-    def get_var_value(self, var, wbt4p, n_mid_cells):
+    def get_var_value(self, var, wbt4p):
         if var['name'] == 'span':
-            return self.get_span(wbt4p, n_mid_cells=n_mid_cells)
+            return self.get_span(wbt4p)
         elif var['name'] == 'height':
-            return self.get_shell_height(wbt4p, n_mid_cells=n_mid_cells)
+            return self.get_shell_height(wbt4p)
         elif var['name'] == 'width':
-            return self.get_shell_width(wbt4p, n_mid_cells=n_mid_cells)
+            return self.get_shell_width(wbt4p)
         elif var['name'] == 'R_0':
             pass
             # return -wb_cell.R_0
@@ -185,9 +202,6 @@ class WbParamDesigner(bu.Model):
             pass
             # for cell!!
             # return self.get_curv_angle(wb_cell)
-
-    def round_to(self, value, base=5):
-        return base * round(value / base)
 
     def get_curv_angle(self, wb_cell):
         X_Ia = wb_cell.X_Ia
@@ -242,6 +256,7 @@ class WbParamDesigner(bu.Model):
         print('path length=', len(path))
 
         return longest_path, color
+
 
 if __name__ == '__main__':
     wb_p = WbParamDesigner()
