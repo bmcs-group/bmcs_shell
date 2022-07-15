@@ -8,11 +8,16 @@ from bmcs_shell.folding.analysis.fem.xdomain_fe_grid import XDomainFE
 from bmcs_shell.folding.analysis.wb_fets2d3u1m_fe import FETS2D3U1M
 from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import WBCell4Param, WBCellSymb4Param
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_flat import WBCell4ParamFlat
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_v2 import WBCell4ParamV2
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p import WBCell5Param
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p import WBCellSymb5ParamXL
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v2 import WBCell5ParamV2
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v3 import WBCell5ParamV3
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTessellation4P
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p_flat import WBTessellation4PFlat
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4pv2 import WBTessellation4PV2
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4pv2_flat import WBTessellation4PV2Flat
 from bmcs_shell.folding.analysis.fem.vmats2D_elastic import MATS2DElastic
 from bmcs_shell.folding.analysis.fem.vmats_shell_elastic import MATSShellElastic
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_base import WBNumTessellationBase

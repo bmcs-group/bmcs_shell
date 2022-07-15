@@ -1,14 +1,13 @@
-"""
-
-"""
-import bmcs_utils.api as bu
-import k3d
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
-    WBCell4Param, axis_angle_to_q, qv_mult
-import traits.api as tr
-import numpy as np
 import json
 import time
+
+import bmcs_utils.api as bu
+import k3d
+import numpy as np
+import traits.api as tr
+
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
+    WBCell4Param, axis_angle_to_q, qv_mult
 
 
 class WBTessellation4P(bu.Model):
@@ -67,8 +66,6 @@ class WBTessellation4P(bu.Model):
         *WBCell4Param.ipw_view.content,
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
-        # bu.Item('show_wireframe'),
-        # bu.Item('show_node_labels'),
         bu.Item('show_nodes'),
         bu.Item('trim_half_cells_along_y'),
         bu.Item('trim_half_cells_along_x'),
@@ -280,7 +277,7 @@ class WBTessellation4P(bu.Model):
 
     def _get_node_match_threshold(self):
         min_length = np.min([self.a, self.b, self.c])
-        return min_length * 1e-4
+        return min_length * 1e-3
 
     unique_node_map = tr.Property(depends_on='+GEO')
     '''Property containing the mapping between the crease pattern nodes

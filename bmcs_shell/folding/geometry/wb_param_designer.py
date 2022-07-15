@@ -60,9 +60,12 @@ class WbParamDesigner(bu.Model):
 
         fig, ax = plt.subplots()
 
-        wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5)
+        wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5
+                                 )
 
         for a_i, a in enumerate(a_range):
+            print('a =', np.round(a, 1))
+            print('--------------------------------')
             wbt4p.trait_set(a=a)
             valid_var1_2_params = []
 
