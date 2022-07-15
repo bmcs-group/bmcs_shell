@@ -13,8 +13,8 @@ class WBTessellation4PV2(WBTessellation4P):
         self.update_wb_cell_params(wb_cell)
         return wb_cell
 
-    a_o = bu.Float(200, GEO=True) # where a_0 must be < c
-    a_o_high = bu.Float(2000)
+    e_x = bu.Float(200, GEO=True) # where a_0 must be < c
+    e_x_high = bu.Float(2000)
 
     def update_wb_cell_params(self, wb_cell):
         wb_cell.trait_set(
@@ -25,8 +25,8 @@ class WBTessellation4PV2(WBTessellation4P):
             b_high=self.b_high,
             c=self.c,
             c_high=self.c_high,
-            a_o=self.a_o,
-            a_o_high=self.a_o_high,
+            e_x=self.e_x,
+            e_x_high=self.e_x_high,
         )
 
     ipw_view = bu.View(

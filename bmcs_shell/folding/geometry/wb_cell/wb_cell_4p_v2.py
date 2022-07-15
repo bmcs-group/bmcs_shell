@@ -11,20 +11,20 @@ class WBCell4ParamV2(WBCell4Param):
     name = 'Waterbomb cell 4p v2'
 
     c = bu.Float(800, GEO=True)
-    a_o = bu.Float(200, GEO=True) # where a_0 must be < c
-    a_o_high = bu.Float(2000)
+    e_x = bu.Float(200, GEO=True) # where e_x must be < c
+    e_x_high = bu.Float(2000)
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
             low=1e-6, high=np.pi / 2, n_steps=401, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
+        bu.Item('a', latex='a^*', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='a_high', n_steps=401, continuous_update=True)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='b_high', n_steps=401, continuous_update=True)),
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='c_high', n_steps=401, continuous_update=True)),
-        bu.Item('a_o', latex='a_o', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='a_o_high', n_steps=401, continuous_update=True)),
+        bu.Item('e_x', latex='e_x', editor=bu.FloatRangeEditor(
+            low=1e-6, high_name='e_x_high', n_steps=401, continuous_update=True)),
         *WBCell.ipw_view.content,
     )
 
@@ -39,14 +39,14 @@ class WBCell4ParamV2(WBCell4Param):
         u_2 = self.symb.get_u_2_()
         u_3 = self.symb.get_u_3_()
         return np.array([
-            [self.a_o, 0, 0],  # O_r
-            [-self.a_o, 0, 0],  # O_l
-            [self.a, u_2, u_3],  # U++
-            [-self.a, u_2, u_3],  # U-+
-            [self.a, -u_2, u_3],  # U+-
-            [-self.a, -u_2, u_3],  # U--
-            [self.a_o + self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],  # W0+
-            [-self.a_o -self.c * np.sin(gamma), 0, self.c * np.cos(gamma)]  # W0-
+            [self.e_x, 0, 0],  # O_r
+            [-self.e_x, 0, 0],  # O_l
+            [self.e_x +self.a, u_2, u_3],  # U++
+            [-self.e_x-self.a, u_2, u_3],  # U-+
+            [self.e_x +self.a, -u_2, u_3],  # U+-
+            [-self.e_x-self.a, -u_2, u_3],  # U--
+            [self.e_x + self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],  # W0+
+            [-self.e_x -self.c * np.sin(gamma), 0, self.c * np.cos(gamma)]  # W0-
         ], dtype=np.float_
         )
 
@@ -67,4 +67,5 @@ class WBCell4ParamV2(WBCell4Param):
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_delta_x(self):
-        return self.symb.get_delta_x() + self.a_o
+        return self.symb.get_delta_x() + 2 * self.e_x
+
