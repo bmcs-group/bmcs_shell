@@ -162,29 +162,75 @@ class WBTessellation4P(bu.Model):
         return X_Ia
 
     I_cells_Fi = tr.Property(depends_on='+GEO')
-    '''Array with nodal coordinates I - node, a - dimension
-    '''
     @tr.cached_property
     def _get_I_cells_Fi(self):
         I_Fi_cell = self.wb_cell.I_Fi
         n_I_cell = self.wb_cell.n_I
         n_cells = self.n_cells
         i_range = np.arange(n_cells) * n_I_cell
-        I_Fi = (I_Fi_cell[np.newaxis,:,:] + i_range[:, np.newaxis, np.newaxis]).reshape(-1,3)
+        I_Fi = (I_Fi_cell[np.newaxis,:,:] + i_range[:, np.newaxis, np.newaxis]).reshape(-1, 3)
         return I_Fi
+
+    I_cells_Li = tr.Property(depends_on='+GEO')
+    ''' Lines-node mapping (uncombined)'''
+    @tr.cached_property
+    def _get_I_cells_Li(self):
+        return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_Li)
+
+    I_cells_V_Li = tr.Property(depends_on='+GEO')
+    ''' Valley lines-node mapping (uncombined)'''
+    @tr.cached_property
+    def _get_I_cells_V_Li(self):
+        return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_V_Li)
+
+    I_V_Li = tr.Property(depends_on='+GEO')
+    ''' Valley lines-node mapping '''
+    def _get_I_V_Li(self):
+        _, idx_remap = self.unique_node_map
+        I_Li = np.unique(np.sort(idx_remap[self.I_cells_V_Li], axis=1), axis=0)
+        return I_Li
+
+    I_cells_M_Li = tr.Property(depends_on='+GEO')
+    ''' Mountain lines-node mapping (uncombined)'''
+    @tr.cached_property
+    def _get_I_cells_M_Li(self):
+        return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_M_Li)
+
+    I_M_Li = tr.Property(depends_on='+GEO')
+    ''' Mountain lines-node mapping '''
+    def _get_I_M_Li(self):
+        _, idx_remap = self.unique_node_map
+        I_Li = np.unique(np.sort(idx_remap[self.I_cells_M_Li], axis=1), axis=0)
+        return I_Li
+
+    def _get_shell_lines_uncombined_I_Li(self, I_Li_cell):
+        n_I_cell = self.wb_cell.n_I
+        n_cells = self.n_cells
+        i_range = np.arange(n_cells) * n_I_cell
+        I_Li = (I_Li_cell[np.newaxis, :, :] + i_range[:, np.newaxis, np.newaxis]).reshape(-1, 2)
+        return I_Li
 
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
     '''
     @tr.cached_property
     def _get_X_Ia(self):
-        idx_unique, idx_remap = self.unique_node_map
+        idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
         if self.align_outer_nodes_along_x:
             _, cells_out_xyj = self.cells_in_out_xyj
             X_Ia[cells_out_xyj[-1, :, 3]] = (X_Ia[cells_out_xyj[-1, :, 3]] + X_Ia[cells_out_xyj[-1, :, 4]]) / 2
             X_Ia[cells_out_xyj[0, :, 4]] = (X_Ia[cells_out_xyj[0, :, 3]] + X_Ia[cells_out_xyj[0, :, 4]]) / 2
         return X_Ia
+
+    I_Li = tr.Property(depends_on='+GEO')
+    '''Lines-node mapping
+    '''
+    def _get_I_Li(self):
+        _, idx_remap = self.unique_node_map
+        I_Li = np.unique(np.sort(idx_remap[self.I_cells_Li], axis=1), axis=0)
+        return I_Li
+
 
     I_Fi_ = tr.Property(depends_on='+GEO')
     '''Facet - node mapping

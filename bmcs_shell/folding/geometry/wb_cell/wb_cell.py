@@ -38,11 +38,31 @@ class WBCell(bu.Model):
                          [764.84218728, 0., 644.21768724],
                          [-764.84218728, 0., 644.21768724]])
 
-    I_Fi = tr.Property
+    I_Fi = tr.Property(depends_on='+GEO')
     '''Triangle mapping '''
     @tr.cached_property
     def _get_I_Fi(self):
         return np.array([[0, 1, 2], [0, 3, 4], [0, 1, 5], [0, 5, 3], [0, 2, 6], [0, 6, 4]]).astype(np.int32)
+
+    I_Li = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_I_Li(self):
+        I_Fi = self.I_Fi
+        I_Li = np.vstack(((I_Fi[:, (0, 1)]), (I_Fi[:, (0, 2)]), (I_Fi[:, (1, 2)])))
+        I_Li = np.sort(I_Li, axis=1)
+        return np.unique(I_Li, axis=0)
+
+    ''' Valley crease lines'''
+    I_V_Li = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_I_V_Li(self):
+        return self.I_Li[:4]
+
+    ''' Mountain crease lines'''
+    I_M_Li = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_I_M_Li(self):
+        return self.I_Li[4:]
 
     def setup_plot(self, pb):
         k3d.plot().fetch_screenshot()
