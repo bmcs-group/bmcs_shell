@@ -479,24 +479,32 @@ class WBTessellation4P(bu.Model):
             if obj_name in pb.objects:
                 pb.clear_object(obj_name)
 
-    def plot_folding_pattern(self, ax=None):
+    def plot_folding_pattern(self, trimmed=False, ax=None, gamma=np.pi/2-0.001):
+        """
+        :trimmed (boolean): False: full original tessellation, True: if some cells are trimmed, plot the trimmed tessellation.
+        However, the trimmed variant doesn't distinguish valley and mountain folds for now.
+        """
         gamma_temp = self.gamma
-        try:
-            self.gamma = np.pi/2-1e-4
-        except:
-            print('Error while setting gamma value..')
-            pass
+        self.gamma = gamma
+        print('Plot tessellation with gamma=', round(np.rad2deg(gamma), 2), '°')
         if ax is None:
             fig, ax = plt.subplots()
+            fig.set_size_inches(8.5, 8.5)
 
-        V_lines = self.X_Ia[self.I_V_Li]
-        M_lines = self.X_Ia[self.I_M_Li]
-        for i_line in range(V_lines.shape[0]):
-            ax.plot(V_lines[i_line, :, 0], V_lines[i_line, :, 1], '--', c='black')
-        for i_line in range(M_lines.shape[0]):
-            ax.plot(M_lines[i_line, :, 0], M_lines[i_line, :, 1], c='black')
+        if trimmed:
+            x = self.X_Ia[:, 0]
+            y = self.X_Ia[:, 1]
+            triangles = self.I_Fi
+            ax.triplot(x, y, triangles, lw=1.2, c='black')
+        else:
+            V_lines = self.X_Ia[self.I_V_Li]
+            M_lines = self.X_Ia[self.I_M_Li]
+            for i_line in range(V_lines.shape[0]):
+                ax.plot(V_lines[i_line, :, 0], V_lines[i_line, :, 1], '--', c='black')
+            for i_line in range(M_lines.shape[0]):
+                ax.plot(M_lines[i_line, :, 0], M_lines[i_line, :, 1], c='black')
+
         ax.axis('equal')
-
         self.gamma = gamma_temp
         if 'fig' in locals():
             fig.show()
