@@ -113,14 +113,14 @@ class WBCell4Param(WBCell, bu.InjectSymbExpr):
     c_high = bu.Float(2000)
 
     ipw_view = bu.View(
-        bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi / 2, n_steps=401, continuous_update=True)),
-        bu.Item('a', latex='a', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='a_high', n_steps=401, continuous_update=True)),
-        bu.Item('b', latex='b', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='b_high', n_steps=401, continuous_update=True)),
-        bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
-            low=1e-6, high_name='c_high', n_steps=401, continuous_update=True)),
+        bu.Item('gamma', latex=r'\gamma', editor=bu.FloatSliderEditor(
+            low=1e-6, high=np.pi / 2 - 0.0001, n_steps=401, continuous_update=True, readout_format='.3f')),
+        bu.Item('a', latex='a', editor=bu.FloatSliderEditor(
+            low=1e-6, high_name='a_high', n_steps=400, continuous_update=True, readout_format='.1f')),
+        bu.Item('b', latex='b', editor=bu.FloatSliderEditor(
+            low=1e-6, high_name='b_high', n_steps=400, continuous_update=True, readout_format='.1f')),
+        bu.Item('c', latex='c', editor=bu.FloatSliderEditor(
+            low=1e-6, high_name='c_high', n_steps=400, continuous_update=True, readout_format='.1f')),
         *WBCell.ipw_view.content,
     )
 

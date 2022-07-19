@@ -5,6 +5,7 @@ import bmcs_utils.api as bu
 import k3d
 import numpy as np
 import traits.api as tr
+import matplotlib.pyplot as plt
 
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
     WBCell4Param, axis_angle_to_q, qv_mult
@@ -230,7 +231,6 @@ class WBTessellation4P(bu.Model):
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_Li], axis=1), axis=0)
         return I_Li
-
 
     I_Fi_ = tr.Property(depends_on='+GEO')
     '''Facet - node mapping
@@ -478,6 +478,29 @@ class WBTessellation4P(bu.Model):
         else:
             if obj_name in pb.objects:
                 pb.clear_object(obj_name)
+
+    def plot_folding_pattern(self, ax=None):
+        gamma_temp = self.gamma
+        try:
+            self.gamma = np.pi/2-1e-4
+        except:
+            print('Error while setting gamma value..')
+            pass
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        V_lines = self.X_Ia[self.I_V_Li]
+        M_lines = self.X_Ia[self.I_M_Li]
+        for i_line in range(V_lines.shape[0]):
+            ax.plot(V_lines[i_line, :, 0], V_lines[i_line, :, 1], '--', c='black')
+        for i_line in range(M_lines.shape[0]):
+            ax.plot(M_lines[i_line, :, 0], M_lines[i_line, :, 1], c='black')
+        ax.axis('equal')
+
+        self.gamma = gamma_temp
+        if 'fig' in locals():
+            fig.show()
+            return fig
 
     def export_fold_file(self, path=None):
         # See https://github.com/edemaine/fold/blob/master/doc/spec.md for fold file specification
