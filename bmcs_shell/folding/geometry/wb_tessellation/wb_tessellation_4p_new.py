@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
     WBCell4Param, axis_angle_to_q, qv_mult
-
-from bmcs_shell.folding.utils.dihedral_angles import get_dih_angles
+import gmsh
 
 class WBTessellation4P(bu.Model):
     name = 'WB Tessellation 4P'
@@ -190,6 +189,8 @@ class WBTessellation4P(bu.Model):
     def _get_I_V_Li(self):
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_V_Li], axis=1), axis=0)
+        # if self.is_trimmed:
+        #     I_Li = self.map_indices_X_Ia__to_X_Ia(I_Li)
         return I_Li
 
     I_cells_M_Li = tr.Property(depends_on='+GEO')
@@ -203,6 +204,8 @@ class WBTessellation4P(bu.Model):
     def _get_I_M_Li(self):
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_M_Li], axis=1), axis=0)
+        # if self.is_trimmed:
+        #     I_Li = self.map_indices_X_Ia__to_X_Ia(I_Li)
         return I_Li
 
     def _get_shell_lines_uncombined_I_Li(self, I_Li_cell):
@@ -212,11 +215,12 @@ class WBTessellation4P(bu.Model):
         I_Li = (I_Li_cell[np.newaxis, :, :] + i_range[:, np.newaxis, np.newaxis]).reshape(-1, 2)
         return I_Li
 
-    X_Ia = tr.Property(depends_on='+GEO')
-    '''Array with nodal coordinates I - node, a - dimension
+    X_Ia_ = tr.Property(depends_on='+GEO')
+    '''Array with nodal coordinates I - node, a - dimension (original, before trimming)
     '''
     @tr.cached_property
-    def _get_X_Ia(self):
+    def _get_X_Ia_(self):
+        print('X_Ia_ updated!')
         idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
         if self.align_outer_nodes_along_x:
@@ -225,12 +229,16 @@ class WBTessellation4P(bu.Model):
             X_Ia[cells_out_xyj[0, :, 4]] = (X_Ia[cells_out_xyj[0, :, 3]] + X_Ia[cells_out_xyj[0, :, 4]]) / 2
         return X_Ia
 
-    X_Ia_trimmed = tr.Property(depends_on='+GEO')
+    X_Ia = tr.Property(depends_on='X_Ia_')
     '''Array with nodal coordinates I - node, a - dimension
     '''
     @tr.cached_property
-    def _get_X_Ia_trimmed(self):
-        return self.X_Ia[np.sort(np.unique(self.I_Fi.flatten()))] if self.is_trimmed else self.X_Ia
+    def _get_X_Ia(self):
+        print('X_Ia updated!')
+        if self.trim_half_cells_along_y or self.trim_half_cells_along_x:
+            return self.X_Ia_[np.sort(np.unique(self.I_Fi_trimmed_indexed_with_X_Ia_.flatten()))]
+        else:
+            return self.X_Ia_
 
     I_Li = tr.Property(depends_on='+GEO')
     '''Lines-node mapping
@@ -241,42 +249,18 @@ class WBTessellation4P(bu.Model):
         return I_Li
 
     I_Fi_ = tr.Property(depends_on='+GEO')
-    '''Facet - node mapping
+    '''Facet - node mapping (original, before trimming)
     '''
     def _get_I_Fi_(self):
         _, idx_remap = self.unique_node_map
         return idx_remap[self.I_cells_Fi]
 
-    I_Fi_trimmed = tr.Property(depends_on='+GEO')
-    '''Facet - node mapping
-    '''
+    I_Fi_trimmed_indexed_with_X_Ia_ = tr.Property(depends_on='+GEO')
+
     @tr.cached_property
-    def _get_I_Fi_trimmed(self):
+    def _get_I_Fi_trimmed_indexed_with_X_Ia_(self):
+        # In case of trimming, this yields the I_Fi with indices referring to the original coords (X_Ia_)
         if self.is_trimmed:
-            I_Fi = self.I_Fi
-            # Reindexing I_Fi to match the new X_Ia (after trimming)
-            I_Fi_shape = I_Fi.shape
-            I_Fi_flat = I_Fi.flatten()
-
-            old_indices = np.sort(np.unique(I_Fi.flatten()))
-            new_indices = np.arange(old_indices.size)
-
-            I_Fi_flat_reindexed = np.copy(I_Fi_flat)
-            for old_index, new_index in zip(old_indices, new_indices):
-                I_Fi_flat_reindexed[I_Fi_flat == old_index] = new_index
-            return I_Fi_flat_reindexed.reshape(I_Fi_shape)
-        else:
-            return self.I_Fi
-
-    I_Fi = tr.Property(depends_on='+GEO')
-    '''Facet - node mapping
-    '''
-    @tr.cached_property
-    def _get_I_Fi(self):
-        _, idx_remap = self.unique_node_map
-        I_Fi = idx_remap[self.I_cells_Fi]
-
-        if self.trim_half_cells_along_y or self.trim_half_cells_along_x:
             cells_in_xyfi_, cells_out_xyfi_ = self.cells_in_out_xyfi
             cells_in_xyfi = np.copy(cells_in_xyfi_)
             cells_out_xyfi = np.copy(cells_out_xyfi_)
@@ -294,8 +278,58 @@ class WBTessellation4P(bu.Model):
             I_Fi = np.vstack((cells_in_xyfi.reshape((-1, 3)), cells_out_xyfi.reshape((-1, 3))))
             F_m = I_Fi.flatten()
             I_Fi = np.delete(F_m, np.where(F_m == -1)).reshape((-1, 3))
+        else:
+            raise Exception("I_Fi_original_trimmed_indexing called with non-trimmed shell!")
+        return I_Fi
+
+    is_trimmed = tr.Property(depends_on='+GEO')
+
+    @tr.cached_property
+    def _get_is_trimmed(self):
+        return self.trim_half_cells_along_y or self.trim_half_cells_along_x
+
+    I_Fi = tr.Property(depends_on='+GEO')
+    '''Facet - node mapping
+    '''
+    @tr.cached_property
+    def _get_I_Fi(self):
+        if self.is_trimmed:
+            I_Fi = self.map_indices_X_Ia__to_X_Ia(self.I_Fi_trimmed_indexed_with_X_Ia_)
+            # I_Fi = self.I_Fi_original_trimmed_indexing
+            # # Reindexing I_Fi to match the new X_Ia (after trimming)
+            # I_Fi_shape = I_Fi.shape
+            # I_Fi_flat = I_Fi.flatten()
+            #
+            # old_indices = np.sort(np.unique(I_Fi.flatten()))
+            # new_indices = np.arange(old_indices.size)
+            #
+            # I_Fi_flat_reindexed = np.copy(I_Fi_flat)
+            # for old_index, new_index in zip(old_indices, new_indices):
+            #     I_Fi_flat_reindexed[I_Fi_flat == old_index] = new_index
+            # I_Fi = I_Fi_flat_reindexed.reshape(I_Fi_shape)
+        else:
+            _, idx_remap = self.unique_node_map
+            I_Fi = idx_remap[self.I_cells_Fi]
 
         return I_Fi
+
+    def map_indices_X_Ia__to_X_Ia(self, arr_X_Ia_):
+        """
+        :param arr_X_Ia_: the input array which has indices in terms of X_Ia_
+        :return: arr_X_Ia_ array indexed using X_Ia and not X_Ia_
+        """
+        # Reindexing arr_X_Ia_ to have it indexed with the new X_Ia (e.g. after trimming)
+        arr_shape = arr_X_Ia_.shape
+        arr_flat = arr_X_Ia_.flatten()
+
+        old_indices = np.sort(np.unique(arr_X_Ia_.flatten()))
+        new_indices = np.arange(old_indices.size)
+
+        arr_X_Ia_reindexed = np.copy(arr_flat)
+        for old_index, new_index in zip(old_indices, new_indices):
+            arr_X_Ia_reindexed[arr_flat == old_index] = new_index
+        arr_X_Ia = arr_X_Ia_reindexed.reshape(arr_shape)
+        return arr_X_Ia
 
     cells_in_out_xyfi = tr.Property(depends_on='+GEO')
     ''' Convenience indexing for inner and outer cells in the tessellation where (x, y cell index along x and y; 
@@ -407,21 +441,16 @@ class WBTessellation4P(bu.Model):
                       self.wb_cell.I_boundary[np.newaxis, np.newaxis, :, :])
         return I_CDij_map
 
-    is_trimmed = tr.Property(depends_on='+GEO')
-
-    @tr.cached_property
-    def _get_is_trimmed(self):
-        return self.trim_half_cells_along_y or self.trim_half_cells_along_x
-
     def setup_plot(self, pb):
         self.pb = pb
-        X_Ia = self.X_Ia_trimmed.astype(np.float32)
-        I_Fi = self.I_Fi_trimmed.astype(np.uint32)
+        X_Ia_ = self.X_Ia_.astype(np.float32)
+        X_Ia = self.X_Ia.astype(np.float32)
+        I_Fi = self.I_Fi.astype(np.uint32)
 
         I_M = self.I_CDij[(0, -1), :, (0, -1), :]
         _, idx_remap = self.unique_node_map
         J_M = idx_remap[I_M]
-        X_Ma = self.X_Ia[J_M.flatten()]
+        X_Ma = X_Ia_[J_M.flatten()]
 
         k3d_mesh = k3d.mesh(X_Ia,
                                  I_Fi,
@@ -441,13 +470,14 @@ class WBTessellation4P(bu.Model):
             self._add_wireframe_to_fig(pb, X_Ia, I_Fi)
 
     def update_plot(self, pb):
-        X_Ia = self.X_Ia_trimmed.astype(np.float32)
-        I_Fi = self.I_Fi_trimmed.astype(np.uint32)
+        X_Ia_ = self.X_Ia_.astype(np.float32)
+        X_Ia = self.X_Ia.astype(np.float32)
+        I_Fi = self.I_Fi.astype(np.uint32)
 
         I_M = self.I_CDij[(0, -1),:,(0, -1),:]
         _, idx_remap = self.unique_node_map
         J_M = idx_remap[I_M]
-        X_Ma = self.X_Ia[J_M.flatten()]
+        X_Ma = X_Ia_[J_M.flatten()]
 
         mesh = pb.objects['k3d_mesh']
         mesh.vertices = X_Ia
@@ -514,119 +544,7 @@ class WBTessellation4P(bu.Model):
             if obj_name in pb.objects:
                 pb.clear_object(obj_name)
 
-    # def _get_min_z_disp(self):
-    #     gamma_tmp = self.gamma
-    #
-    #     X_final_Ia = self.X_Ia_trimmed
-    #     self.gamma = np.pi / 2 - 0.0001
-    #     X_0_Ia = self.X_Ia_trimmed
-    #     X_diff_Ia = X_final_Ia - X_0_Ia
-    #     z_diff_I = np.abs(X_diff_Ia[:, 2])
-    #     sorted_z_diff_indices = np.argsort(z_diff_I)
-    #     sorted_z_diff_values = np.sort(z_diff_I)
-    #
-    #     self.gamma = gamma_tmp
-    #
-    #     # the point at the first few points should be where supports are needed in the formwork
-    #     return sorted_z_diff_indices, sorted_z_diff_values
-
-    def plot_formwork_plan(self, type='folded', ax=None, trimmed=False, gamma=None):
-        """
-        :param type: 'fixed_base' , 'moving_top', 'pattern', 'folded'
-        :param ax:
-        :param trimmed:
-        :param gamma:
-        :return:
-        """
-        if gamma is None:
-            gamma = self.gamma
-
-        if type == 'pattern':
-            self.gamma = np.pi/2-0.0001
-            gamma = self.gamma
-
-        fig = None
-        if ax is None:
-            fig, ax = plt.subplots()
-            fig.set_size_inches(8.5, 8.5)
-        ax.axis('equal')
-
-        self.plot_folding_pattern(trimmed=trimmed, ax=ax,
-                                  gamma=np.pi/2-0.0001, color='black' if type == 'pattern' else 'silver', view='top')
-        if type != 'pattern':
-            self.plot_folding_pattern(trimmed=trimmed, ax=ax, gamma=gamma, color='red', view='top')
-
-        gamma_temp = self.gamma
-        self.gamma = gamma
-
-        self.plot_formwork_points(ax=ax, type=type)
-
-        self.gamma = gamma_temp
-
-        if fig is not None:
-            fig.show()
-            return fig, ax
-
-    def plot_formwork_points(self, ax=None, type='fixed'):
-        fig = None
-        if ax is None:
-            fig, ax = plt.subplots()
-            fig.set_size_inches(8.5, 8.5)
-
-        x = self.X_Ia_trimmed[:, 0]
-        y = self.X_Ia_trimmed[:, 1]
-        z_orig = self.X_Ia_trimmed[:, 2]
-        z = np.copy(z_orig)
-        n = np.arange(x.size)
-
-        # Shift z coords so that the point with minimum z displacement have z=0
-        z_min_disp_idx = np.argmin(np.abs(z))
-        z = z - z[z_min_disp_idx]
-
-        if type == 'fixed_base':
-            print('Fixed nodes list (fixed on bottom fixed plate):')
-            supp_points_indices = np.where(z < 0)[0]
-            supp_points_values = z[z < 0]
-            supp_points_values = supp_points_values - np.min(supp_points_values)
-            n = n[supp_points_indices]
-            x = x[supp_points_indices]
-            y = y[supp_points_indices]
-            z = supp_points_values
-        elif type == 'moving_top':
-            print('Moving nodes list (must be raised to fold the shell):')
-            moved_points_indices = np.where(z >= 0)[0]
-            n = n[moved_points_indices]
-            x = x[moved_points_indices]
-            y = y[moved_points_indices]
-            z = z[moved_points_indices]
-        elif type == 'pattern' or type == 'folded':
-            print('Pattern points (in flat unfolded state):')
-            z = z_orig
-        print('-----------------------------------------------------------')
-
-        print('Node num.: Coords. in folded state (x, y, z_diff)')
-        #     print('|Node num. |x|y|')
-        #     print('|:-|:-:|:-:|')
-
-        anno_ratio = int(np.round(0.03 * (np.max(x) - np.min(x))))
-        for i, x_i, y_i, z_i in zip(n, x, y, z):
-            x_ro = int(np.round(x_i))
-            y_ro = int(np.round(y_i))
-            z_ro = int(np.round(z_i))
-            ax.annotate(str(i), (x_ro, y_ro + anno_ratio), color='red' if z_i > 0 else 'black' if z_i == 0 else 'blue')
-            ax.plot(x_i, y_i, 'o', color='red' if z_i > 0 else 'black' if z_i == 0 else 'blue')
-
-            print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
-        #         print('|' + str(i) + '|' + str(x_anno) + '|' + str(y_anno) + '|')
-
-        if fig is not None:
-            fig.show()
-            return fig, ax
-
-    def plot_folding_pattern(self, trimmed=False, ax=None,
-                             gamma=np.pi/2-0.0001,
-                             color='black',
-                             view='top'):
+    def plot_folding_pattern(self, trimmed=False, ax=None, gamma=np.pi/2-0.001, vert_disp=False):
         """
         :trimmed (boolean): False: full original tessellation, True: if some cells are trimmed, plot the trimmed tessellation.
         However, the trimmed variant doesn't distinguish valley and mountain folds for now.
@@ -638,36 +556,24 @@ class WBTessellation4P(bu.Model):
             fig, ax = plt.subplots()
             fig.set_size_inches(8.5, 8.5)
 
-        if view == 'top':
-            coord_1, coord_2 = 0, 1
-        elif view == 'side':
-            coord_1, coord_2 = 1, 2
-        elif view == 'front':
-            coord_1, coord_2 = 0, 2
-        else:
-            raise Exception('No valid value has been provided for argument "view"')
-
-        if trimmed:
-            X_I1 = self.X_Ia_trimmed[:, coord_1]
-            X_I2 = self.X_Ia_trimmed[:, coord_2]
-            triangles = self.I_Fi_trimmed
-            ax.triplot(X_I1, X_I2, triangles, lw=1.2, c=color)
-        else:
-            V_lines = self.X_Ia[self.I_V_Li]
-            M_lines = self.X_Ia[self.I_M_Li]
-            for i_line in range(V_lines.shape[0]):
-                ax.plot(V_lines[i_line, :, coord_1], V_lines[i_line, :, coord_2], '--', c=color)
-            for i_line in range(M_lines.shape[0]):
-                ax.plot(M_lines[i_line, :, coord_1], M_lines[i_line, :, coord_2], c=color)
+        # if self.is_trimmed:
+        #     x = self.X_Ia[:, 0]
+        #     y = self.X_Ia[:, 1]
+        #     triangles = self.I_Fi
+        #     ax.triplot(x, y, triangles, lw=1.2, c='black')
+        # else:
+        V_lines = self.X_Ia_[self.I_V_Li]
+        M_lines = self.X_Ia_[self.I_M_Li]
+        for i_line in range(V_lines.shape[0]):
+            ax.plot(V_lines[i_line, :, 0], V_lines[i_line, :, 1], '--', c='black')
+        for i_line in range(M_lines.shape[0]):
+            ax.plot(M_lines[i_line, :, 0], M_lines[i_line, :, 1], c='black')
 
         ax.axis('equal')
         self.gamma = gamma_temp
         if 'fig' in locals():
             fig.show()
-            return fig, ax
-
-    def get_dih_angles(self):
-        return get_dih_angles(self.X_Ia_trimmed, self.I_Fi_trimmed)
+            return fig
 
     def export_fold_file(self, path=None):
         # See https://github.com/edemaine/fold/blob/master/doc/spec.md for fold file specification

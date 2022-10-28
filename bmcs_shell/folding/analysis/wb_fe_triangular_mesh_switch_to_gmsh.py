@@ -6,6 +6,7 @@ import pygmsh
 import numpy as np
 import k3d
 import gmsh
+import meshio
 
 class WBShellFETriangularMesh(FETriangularMesh):
     """Directly mapped mesh with one-to-one mapping
@@ -39,37 +40,64 @@ class WBShellFETriangularMesh(FETriangularMesh):
 
     @tr.cached_property
     def _get_mesh(self):
+        gmsh.initialize()
+        gmsh.model.add("mesh")
 
         X_Id = self.geo.X_Ia
         I_Fi = self.geo.I_Fi
         mesh_size = np.linalg.norm(X_Id[1] - X_Id[0]) / self.subdivision
 
-        with pygmsh.geo.Geometry() as geom:
-            xpoints = np.array([
-                geom.add_point(X_d, mesh_size=mesh_size) for X_d in X_Id
-            ])
-            for I_i in I_Fi:
-                # Create points.
+        xpoints = np.array([gmsh.model.occ.addPoint(*X_d, meshSize=mesh_size) for X_d in X_Id])
+        for I_i in I_Fi:
+            # Add surface to geom object
+            Facet(gmsh.model.occ, xpoints[I_i])
 
-                Facet(geom, xpoints[I_i])
-            #                geom.add_polygon(X_id, mesh_size=mesh_size)
-            gmsh.model.geo.remove_all_duplicates()
-            mesh = geom.generate_mesh()
-        return mesh
+        gmsh.model.occ.synchronize()
+        gmsh.model.mesh.generate(2)
+        gmsh.model.mesh.recombine()
+
+        return gmsh.model.mesh
+
+    mesh_points = tr.Property(depends_on='mesh')
+    @tr.cached_property
+    def _get_mesh_points(self):
+        idx, points, _ = self.mesh.getNodes()
+        points = np.asarray(points).reshape(-1, 3)
+        idx -= 1
+        srt = np.argsort(idx)
+        assert np.all(idx[srt] == np.arange(len(idx)))
+        return points[srt]
+
+    mesh_cells = tr.Property(depends_on='mesh')
+    @tr.cached_property
+    def _get_mesh_cells(self):
+        elem_types, elem_tags, node_tags = self.mesh.getElements()
+        cells = []
+        for elem_type, elem_tags, node_tags in zip(elem_types, elem_tags, node_tags):
+            # `elementName', `dim', `order', `numNodes', `localNodeCoord',
+            # `numPrimaryNodes'
+            num_nodes_per_cell = gmsh.model.mesh.getElementProperties(elem_type)[3]
+
+            node_tags_reshaped = np.asarray(node_tags).reshape(-1, num_nodes_per_cell) - 1
+            node_tags_sorted = node_tags_reshaped[np.argsort(elem_tags)]
+            cells.append(
+                meshio.CellBlock(
+                    meshio.gmsh.gmsh_to_meshio_type[elem_type], node_tags_sorted
+                )
+            )
+        return cells
 
     X_Id = tr.Property
-
     def _get_X_Id(self):
         if self.direct_mesh:
             return self.geo.X_Ia
-        return np.array(self.mesh.points, dtype=np.float_)
+        return np.array(self.mesh_points, dtype=np.float_)
 
     I_Fi = tr.Property
-
     def _get_I_Fi(self):
         if self.direct_mesh:
             return self.geo.I_Fi
-        return self.mesh.cells[0].data
+        return self.mesh_cells
 
     bc_fixed_nodes = tr.Array(np.int_, value=[])
     bc_loaded_nodes = tr.Array(np.int_, value=[])
@@ -109,23 +137,18 @@ class WBShellFETriangularMesh(FETriangularMesh):
 
 
 class Facet:
-    dim = 2
-
     def __init__(self, host, xpoints):
         # Create lines
         self.curves = [
-                          host.add_line(xpoints[k], xpoints[k + 1])
+                          host.addLine(xpoints[k], xpoints[k + 1])
                           for k in range(len(xpoints) - 1)
-                      ] + [host.add_line(xpoints[-1], xpoints[0])]
+                      ] + [host.addLine(xpoints[-1], xpoints[0])]
 
         self.lines = self.curves
 
-        self.curve_loop = host.add_curve_loop(self.curves)
+        self.curve_loop = host.addCurveLoop(self.curves)
         # self.surface = host.add_plane_surface(ll, holes) if make_surface else None
-        self.surface = host.add_plane_surface(self.curve_loop)
-        self.dim_tag = self.surface.dim_tag
-        self.dim_tags = self.surface.dim_tags
-        self._id = self.surface._id
+        self.surface = host.addPlaneSurface([self.curve_loop])
 
     def __repr__(self):
-        return "<pygmsh Polygon object>"
+        return "<gmsh Polygon object>"

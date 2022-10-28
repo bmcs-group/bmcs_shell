@@ -1,5 +1,4 @@
 import bmcs_utils.api as bu
-import k3d
 
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_base import WBNumTessellationBase
 import numpy as np
@@ -118,8 +117,14 @@ class WBNumTessellation(WBNumTessellationBase):
     def update_plot(self, pb):
         if self.k3d_mesh:
             X_Ia, I_Fi  = self.calc_mesh_for_tessellated_cells()
+
+            # TODO: make this cleaner
+            self.X_Ia_shell = X_Ia
+            self.I_Fi_shell = I_Fi.reshape((I_Fi.shape[0] * I_Fi.shape[1], 3))
+
             X_Ia = X_Ia.astype(np.float32)
             I_Fi = I_Fi.astype(np.uint32)
+
             self.k3d_mesh['wb_tess_mesh'].vertices = X_Ia
             self.k3d_mesh['wb_tess_mesh'].indices = I_Fi
             self.k3d_wireframe['wb_tess_mesh'].vertices = X_Ia

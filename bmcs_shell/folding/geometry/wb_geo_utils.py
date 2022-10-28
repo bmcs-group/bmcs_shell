@@ -3,9 +3,10 @@
 class WBGeoUtils:
 
     @staticmethod
-    def export_obj_file(wb_shell, name='wb_3d_print.obj'):
-        I_Fi = wb_shell.I_Fi
-        X_Ia = wb_shell.X_Ia / 1000
+    def export_obj_file(wb_shell=None, name='wb_3d_print.obj', I_Fi=None, X_Ia=None):
+        if wb_shell is not None:
+            I_Fi = wb_shell.I_Fi
+            X_Ia = wb_shell.X_Ia / 1000
 
         # Write to obj file
         f = open(name, 'w')
