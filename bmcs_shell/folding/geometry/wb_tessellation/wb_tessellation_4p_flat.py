@@ -19,7 +19,8 @@ class WBTessellation4PFlat(WBTessellation4P):
             return self.last_c
         else:
             c = self.a * (1 - np.sin(self.gamma)) / np.cos(self.gamma) ** 2
-            # TODO: this round is a workaround because of the spe
+            # TODO: this round is a workaround because the wb_cell will accept only 5-multiplication c values
+            #  (c_max = 2000 and it has 400 steps)
             c = 5 * round(c/5)
             self.last_c = c
             return c

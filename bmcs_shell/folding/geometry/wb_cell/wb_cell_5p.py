@@ -26,7 +26,7 @@ def get_x_sol(Eq_UOU, x_ul, subs_yz):
     return x_ul_sol1, x_ul_sol2, A_, B_, C_
 
 
-class WBCellSymb5ParamXL(bu.SymbExpr):
+class WBCell5ParamXurSymb(bu.SymbExpr):
 
     a, b, c = sp.symbols('a, b, c', positive=True)
     gamma = sp.symbols('gamma')
@@ -117,9 +117,9 @@ class WBCellSymb5ParamXL(bu.SymbExpr):
         ('P_3', ()),
     ]
 
-class WBCell5Param(WBCell, bu.InjectSymbExpr):
+class WBCell5ParamXur(WBCell, bu.InjectSymbExpr):
     name = 'waterbomb cell 5p'
-    symb_class = WBCellSymb5ParamXL
+    symb_class = WBCell5ParamXurSymb
 
     plot_backend = 'k3d'
 
@@ -134,8 +134,8 @@ class WBCell5Param(WBCell, bu.InjectSymbExpr):
     a_high = bu.Float(2000)
     b_high = bu.Float(2000)
     c_high = bu.Float(2000)
-    y_sol1 = bu.Bool(False, GEO=True)
-    x_sol1 = bu.Bool(False, GEO=True)
+    y_sol1 = bu.Bool(True, GEO=True)
+    x_sol1 = bu.Bool(True, GEO=True)
 
     continuous_update = True
 

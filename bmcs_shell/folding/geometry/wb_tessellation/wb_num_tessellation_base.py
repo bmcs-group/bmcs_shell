@@ -11,6 +11,14 @@ from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_base import WBT
 class WBNumTessellationBase(WBTessellationBase):
     name = 'WB Num. Tessellation Base'
 
+    depends_on = ['wb_cell']
+
+    def get_sol(self, _, __, side='r'):
+        if side == 'r':
+            return self.sol
+        elif side == 'l':
+            return -self.sol
+
     sol = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_sol(self):
@@ -34,8 +42,8 @@ class WBNumTessellationBase(WBTessellationBase):
         return sol
 
     def rotate_and_get_diff(self, rotations):
-        br_X_Ia_rot = self._get_br_X_Ia(self.X_Ia, rot=rotations[0])
-        ur_X_Ia_rot = self._get_ur_X_Ia(self.X_Ia, rot=rotations[1])
+        br_X_Ia_rot = self._get_br_X_Ia(self.wb_cell_.X_Ia, rot=rotations[0])
+        ur_X_Ia_rot = self._get_ur_X_Ia(self.wb_cell_.X_Ia, rot=rotations[1])
         diff = ur_X_Ia_rot[1] - br_X_Ia_rot[3]
         dist = np.sqrt(np.sum(diff * diff))
         #     print('dist=', dist)

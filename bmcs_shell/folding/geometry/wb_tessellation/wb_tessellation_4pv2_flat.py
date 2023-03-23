@@ -8,7 +8,7 @@ from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTes
 
 
 class WBTessellation4PV2Flat(WBTessellation4P):
-    name = 'WB Tessellation 4P Flat'
+    name = 'WB Tessellation 4P FlatV2'
 
     wb_cell = bu.Instance(WBCell4ParamV2)
     def _wb_cell_default(self):
@@ -28,7 +28,8 @@ class WBTessellation4PV2Flat(WBTessellation4P):
             return self.last_c
         else:
             c = self.a * (1 - np.sin(self.gamma)) / np.cos(self.gamma) ** 2
-            # TODO: this round is a workaround because of the spe
+            # TODO: this round is a workaround because the wb_cell will accept only 5-multiplication c values
+            #  (c_max = 2000 and it has 400 steps), make c steps 2000 in wb_cell to improve accuracy (but slow render)
             c = 5 * round(c/5)
             self.last_c = c
             return c

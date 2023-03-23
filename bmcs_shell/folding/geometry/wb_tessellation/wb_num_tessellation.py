@@ -2,9 +2,13 @@ import bmcs_utils.api as bu
 
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_base import WBNumTessellationBase
 import numpy as np
+import traits.api as tr
+
 
 class WBNumTessellation(WBNumTessellationBase):
     name = 'WBNumTessellation'
+
+    depends_on = ['wb_cell']
 
     n_y = bu.Int(3, GEO=True)
     n_x = bu.Int(3, GEO=True)
@@ -18,8 +22,8 @@ class WBNumTessellation(WBNumTessellationBase):
     def calc_mesh_for_tessellated_cells(self):
         # TODO: the resulting mesh_X_nmIa, mesh_I_Fi are just summing up all cells, repeation deletion is needed to use
         #  it in analysis
-        I_Fi = self.I_Fi
-        X_Ia = self.X_Ia
+        I_Fi = self.wb_cell_.I_Fi
+        X_Ia = self.wb_cell_.X_Ia
 
         y_base_cell_X_Ia = X_Ia
         next_y_base_cell_X_Ia = X_Ia
@@ -90,7 +94,7 @@ class WBNumTessellation(WBNumTessellationBase):
         seven_mult_Iab = seven_mult_i[:, np.newaxis, np.newaxis] + np.zeros((n_x * n_y, 6, 3), dtype=np.int32)
         mesh_I_Fi = np.full((n_x * n_y, 6, 3), I_Fi)
         mesh_I_Fi = mesh_I_Fi + seven_mult_Iab
-        mesh_I_Fi.reshape((n_x * n_y * 6, 3))
+        mesh_I_Fi = mesh_I_Fi.reshape((n_x * n_y * 6, 3))
 
         return mesh_X_Oa, mesh_I_Fi
 
@@ -106,8 +110,81 @@ class WBNumTessellation(WBNumTessellationBase):
             indices = np.delete(a, indices)
         return indices
 
-    # Plotting ##########################################################################
+    # Impl of calc_mesh_for_tessellated_cells function with one-direction cells propagation along x instead of symmetric
+    # def calc_mesh_for_tessellated_cells(self):
+    #     # TODO: the resulting mesh_X_nmIa, mesh_I_Fi are just summing up all cells, repeation deletion is needed to use
+    #     #  it in analysis
+    #     I_Fi = self.wb_cell_.I_Fi
+    #     X_Ia = self.wb_cell_.X_Ia
+    #
+    #     y_base_cell_X_Ia = X_Ia
+    #     next_y_base_cell_X_Ia = X_Ia
+    #     base_cell_X_Ia = X_Ia
+    #     next_base_cell_X_Ia = X_Ia
+    #
+    #     n_y, n_x = self.n_y, self.n_x
+    #
+    #     mesh_X_nmIa = np.zeros((n_y, n_x, 7, 3))
+    #
+    #     for i in range(n_y):
+    #         print('i =', i)
+    #         add_br = True  # to switch between adding br and ur
+    #
+    #         for j in range(n_x):
+    #             print(' j =', j)
+    #
+    #             if j == 0:
+    #                 print('  j ==', 0)
+    #                 mesh_X_nmIa[i, j, ...] = base_cell_X_Ia
+    #                 continue
+    #
+    #             # Number of cell_to_add is even (add right from base cell)
+    #             if add_br:
+    #                 print('   j_is_even -> add_br')
+    #                 cell_to_add = self._get_br_X_Ia(base_cell_X_Ia, rot_sols=self.sol)
+    #                 mesh_X_nmIa[i, j, ...] = cell_to_add
+    #             else:
+    #                 print('   j_is_even -> add_ur')
+    #                 cell_to_add = self._get_ur_X_Ia(base_cell_X_Ia, rot_sols=self.sol)
+    #                 mesh_X_nmIa[i, j, ...] = cell_to_add
+    #             add_br = not add_br
+    #             base_cell_X_Ia = cell_to_add
+    #
+    #         i_row_is_even = (i + 1) % 2 == 0
+    #         if i_row_is_even:
+    #             print(' i_row_is_even')
+    #             # Next row is odd (change y_base_cell_X_Ia to a cell below base cell)
+    #             base_cell_X_Ia = self._get_bl_X_Ia(self._get_br_X_Ia(next_y_base_cell_X_Ia, rot_sols=self.sol),
+    #                                                rot_sols=self.sol)
+    #             next_y_base_cell_X_Ia = y_base_cell_X_Ia
+    #             y_base_cell_X_Ia = base_cell_X_Ia
+    #         else:
+    #             print(' i_row_is_odd')
+    #             # Next row is even (change y_base_cell_X_Ia to a cell above base cell)
+    #             base_cell_X_Ia = self._get_ul_X_Ia(self._get_ur_X_Ia(next_y_base_cell_X_Ia, rot_sols=self.sol),
+    #                                                rot_sols=self.sol)
+    #             next_y_base_cell_X_Ia = y_base_cell_X_Ia
+    #             y_base_cell_X_Ia = base_cell_X_Ia
+    #
+    #     print('finished_loops')
+    #     indices_of_cells_to_skip = self._get_indices_of_cells_to_skip()
+    #
+    #     # TODO: here the coodinates of indicies of cells to skip are set simply to zero and not eliminated!
+    #     #  when exporting geometry for analysis they need to be completly eliminated
+    #
+    #     #     mesh_X_nmIa[-1, indices_of_cells_to_skip, :, :] = 0
+    #     mesh_X_Oa = mesh_X_nmIa.reshape((n_y * n_x * 7, 3))
+    #
+    #     # Calculating mesh_I_Fi
+    #     seven_mult_i = 7 * np.arange(n_x * n_y)
+    #     seven_mult_Iab = seven_mult_i[:, np.newaxis, np.newaxis] + np.zeros((n_x * n_y, 6, 3), dtype=np.int32)
+    #     mesh_I_Fi = np.full((n_x * n_y, 6, 3), I_Fi)
+    #     mesh_I_Fi = mesh_I_Fi + seven_mult_Iab
+    #     mesh_I_Fi.reshape((n_x * n_y * 6, 3))
+    #
+    #     return mesh_X_Oa, mesh_I_Fi
 
+    # Plotting ##########################################################################
     def setup_plot(self, pb):
         self.pb = pb
         pb.clear_fig()
@@ -120,7 +197,7 @@ class WBNumTessellation(WBNumTessellationBase):
 
             # TODO: make this cleaner
             self.X_Ia_shell = X_Ia
-            self.I_Fi_shell = I_Fi.reshape((I_Fi.shape[0] * I_Fi.shape[1], 3))
+            self.I_Fi_shell = I_Fi
 
             X_Ia = X_Ia.astype(np.float32)
             I_Fi = I_Fi.astype(np.uint32)

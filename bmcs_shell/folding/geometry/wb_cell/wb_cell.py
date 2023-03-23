@@ -19,6 +19,14 @@ class WBCell(bu.Model):
     show_wireframe = bu.Bool(True, GEO=True)
     opacity = bu.Float(0.6, GEO=True)
 
+    callback_fun = None
+
+    # TODO: Quick fix to make cell changes reflect in tessellations!
+    @tr.observe('+GEO', post_init=False)
+    def update_after_wb_cell_GEO_changes(self, event):
+        if self.callback_fun is not None:
+            self.callback_fun()
+
     ipw_view = bu.View(
         bu.Item('show_node_labels'),
         bu.Item('show_wireframe'),
@@ -127,3 +135,10 @@ class WBCell(bu.Model):
             pb.plot_fig += k3d_text
             text_list.append(k3d_text)
         pb.objects[self.K3D_NODES_LABELS] = text_list
+
+        # New impl, but it didn't work on current k3d jupyter extension
+        # node_indicies_I = np.arange(X_Ia.shape[0])
+        # node_indicies_str_list = [str(idx) for idx in node_indicies_I]
+        # k3d_text = k3d.text(node_indicies_str_list, position=X_Ia.flatten(), label_box=False, size=0.8, color=0x00FF00)
+        # pb.plot_fig += k3d_text
+        # pb.objects[self.K3D_NODES_LABELS] = k3d_text

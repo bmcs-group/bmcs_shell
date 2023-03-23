@@ -9,6 +9,8 @@ class WBNumTessellationInvest(WBNumTessellationBase):
 
     name = 'WBNumTessellationInvest'
 
+    depends_on = ['wb_cell']
+
     rot_br = bu.Float(0.5)
     rot_ur = bu.Float(0.5)
     investigate_rot = bu.Bool
@@ -28,10 +30,10 @@ class WBNumTessellationInvest(WBNumTessellationBase):
     def update_plot(self, pb):
         if self.k3d_mesh:
             sol = self.sol
-            X_Ia = self.X_Ia.astype(np.float32)
-            br_X_Ia = self._get_br_X_Ia(self.X_Ia, self.rot_br if self.investigate_rot else sol[
+            X_Ia = self.wb_cell_.X_Ia.astype(np.float32)
+            br_X_Ia = self._get_br_X_Ia(self.wb_cell_.X_Ia, self.rot_br if self.investigate_rot else sol[
                 0]).astype(np.float32)
-            ur_X_Ia = self._get_ur_X_Ia(self.X_Ia, self.rot_ur if self.investigate_rot else sol[
+            ur_X_Ia = self._get_ur_X_Ia(self.wb_cell_.X_Ia, self.rot_ur if self.investigate_rot else sol[
                 1]).astype(np.float32)
             self.k3d_mesh['X_Ia'].vertices = X_Ia
             self.k3d_mesh['br_X_Ia'].vertices = br_X_Ia

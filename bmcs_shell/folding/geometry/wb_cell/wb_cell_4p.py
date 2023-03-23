@@ -190,6 +190,10 @@ class WBCell4Param(WBCell, bu.InjectSymbExpr):
     def _get_R_0(self):
         return self.symb.get_R_0()
 
+    def get_b_gamma_theta_equal(self):
+        b = self.a * (1 - np.sin(self.gamma)) / np.cos(self.gamma) ** 2
+        return b
+
 
 def q_normalize(q, axis=1):
     sq = np.sqrt(np.sum(q * q, axis=axis))
