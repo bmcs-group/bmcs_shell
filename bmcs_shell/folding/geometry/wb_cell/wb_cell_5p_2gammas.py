@@ -6,7 +6,7 @@ from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from numpy import sin, cos, sqrt, tan
 from scipy.optimize import fsolve
 
-class WBCell2Gammas(WBCell):
+class WBCell5P2Gammas(WBCell):
     name = 'WBCell2Gammas'
 
     plot_backend = 'k3d'

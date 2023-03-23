@@ -7,8 +7,8 @@ import numpy as np
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import WBCell4Param
 
 
-class WBCell4ParamV2(WBCell4Param):
-    name = 'Waterbomb cell 4p v2'
+class WBCell4ParamEx(WBCell4Param):
+    name = 'WBCell4ParamEx'
 
     c = bu.Float(800, GEO=True)
     e_x = bu.Float(200, GEO=True) # where e_x must be < c

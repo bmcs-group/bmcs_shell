@@ -7,8 +7,8 @@ from numpy import sin, cos, sqrt
 from scipy.optimize import root
 
 
-class WBCell5ParamV3(WBCell):
-    name = 'waterbomb cell 5p v3'
+class WBCell5ParamL1(WBCell):
+    name = 'WBCell5ParamL1'
 
     plot_backend = 'k3d'
 

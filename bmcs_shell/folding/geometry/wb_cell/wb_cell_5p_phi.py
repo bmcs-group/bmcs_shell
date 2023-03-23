@@ -6,12 +6,13 @@ from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
 from numpy import sin, cos, sqrt, tan
 from scipy.optimize import fsolve, least_squares , minimize
 
-class WBCell5ParamV4(WBCell):
-    name = 'WBCell5ParamV4'
+class WBCell5ParamPhi(WBCell):
+    name = 'WBCell5ParamPhi'
 
     plot_backend = 'k3d'
 
     gamma = bu.Float(np.pi / 6, GEO=True)
+    # phi is the dihedral angle between the plane yz and the vertical plane passing through center O and (U_ur + U_ul)/2
     phi = bu.Float(0.1, GEO=True)
 
     a = bu.Float(1000., GEO=True)

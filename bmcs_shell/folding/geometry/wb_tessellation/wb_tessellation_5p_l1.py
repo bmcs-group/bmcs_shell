@@ -1,10 +1,10 @@
 import bmcs_utils.api as bu
 
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v3 import WBCell5ParamV3
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_l1 import WBCell5ParamL1
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_base import WBNumTessellationBase
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation import WBNumTessellation
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v2 import \
-    WBCell5ParamV2
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_beta import \
+    WBCell5ParamBeta
 import traits.api as tr
 import numpy as np
 from numpy import cos, sin, sqrt
@@ -12,10 +12,10 @@ from scipy.optimize import minimize
 import k3d
 import random
 
-class WBTessellation5PV3(WBNumTessellation):
-    name = 'WBTessellation5PV2'
+class WBTessellation5PL1(WBNumTessellation):
+    name = 'WBTessellation5PL1'
 
-    wb_cell = bu.Instance(WBCell5ParamV3, ())
+    wb_cell = bu.Instance(WBCell5ParamL1, ())
     tree = ['wb_cell']
     X_Ia = tr.DelegatesTo('wb_cell')
     I_Fi = tr.DelegatesTo('wb_cell')

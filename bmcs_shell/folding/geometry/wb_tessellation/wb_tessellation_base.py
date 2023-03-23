@@ -9,12 +9,12 @@ import traits.api as tr
 
 from bmcs_shell.folding.geometry.math_utils import get_rot_matrix_around_vector, get_best_rot_and_trans_3d
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import WBCell4Param
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p import WBCell5ParamXur
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_2_gammas import WBCell2Gammas
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v2_2_betas import WBCell5ParamV2_2Betas
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v4 import WBCell5ParamV4
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v2 import WBCell5ParamV2
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v3 import WBCell5ParamV3
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_xur import WBCell5ParamXur
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2gammas import WBCell5P2Gammas
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2betas import WBCell5Param2Betas
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_phi import WBCell5ParamPhi
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_beta import WBCell5ParamBeta
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_l1 import WBCell5ParamL1
 
 
 class WBTessellationBase(bu.Model):
@@ -28,11 +28,11 @@ class WBTessellationBase(bu.Model):
     show_node_labels = bu.Bool(False, GEO=True)
     wb_cell = bu.EitherType(options=[('WBCell4Param', WBCell4Param),
                                      ('WBCell5Param', WBCell5ParamXur),
-                                     ('WBCell5ParamV2', WBCell5ParamV2),
-                                     ('WBCell5ParamV3', WBCell5ParamV3),
-                                     ('WBCell5ParamV4', WBCell5ParamV4),
-                                     ('WBCell2Gammas', WBCell2Gammas),
-                                     ('WBCell5ParamV2_2Betas', WBCell5ParamV2_2Betas),
+                                     ('WBCell5ParamV2', WBCell5ParamBeta),
+                                     ('WBCell5ParamV3', WBCell5ParamL1),
+                                     ('WBCell5ParamV4', WBCell5ParamPhi),
+                                     ('WBCell2Gammas', WBCell5P2Gammas),
+                                     ('WBCell5ParamV2_2Betas', WBCell5Param2Betas),
 
                                      ], GEO=True)
 

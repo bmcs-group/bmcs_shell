@@ -3,16 +3,16 @@ import numpy as np
 import traits.api as tr
 
 from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_v2 import WBCell4ParamV2
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_ex import WBCell4ParamEx
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTessellation4P
 
 
-class WBTessellation4PV2Flat(WBTessellation4P):
+class WBTessellation4PExFlat(WBTessellation4P):
     name = 'WB Tessellation 4P FlatV2'
 
-    wb_cell = bu.Instance(WBCell4ParamV2)
+    wb_cell = bu.Instance(WBCell4ParamEx)
     def _wb_cell_default(self):
-        wb_cell = WBCell4ParamV2()
+        wb_cell = WBCell4ParamEx()
         self.update_wb_cell_params(wb_cell)
         return wb_cell
 

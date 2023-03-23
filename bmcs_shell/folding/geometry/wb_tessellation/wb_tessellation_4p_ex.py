@@ -1,15 +1,15 @@
 import bmcs_utils.api as bu
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_v2 import WBCell4ParamV2
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_ex import WBCell4ParamEx
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTessellation4P
 
 
-class WBTessellation4PV2(WBTessellation4P):
-    name = 'WB Tessellation 4P V2'
+class WBTessellation4PEx(WBTessellation4P):
+    name = 'WBTessellation4PEx'
 
-    wb_cell = bu.Instance(WBCell4ParamV2)
+    wb_cell = bu.Instance(WBCell4ParamEx)
 
     def _wb_cell_default(self):
-        wb_cell = WBCell4ParamV2()
+        wb_cell = WBCell4ParamEx()
         self.update_wb_cell_params(wb_cell)
         return wb_cell
 
@@ -31,7 +31,7 @@ class WBTessellation4PV2(WBTessellation4P):
 
     ipw_view = bu.View(
         # bu.Item('wb_cell'),
-        *WBCell4ParamV2.ipw_view.content,
+        *WBCell4ParamEx.ipw_view.content,
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
         bu.Item('show_nodes'),
