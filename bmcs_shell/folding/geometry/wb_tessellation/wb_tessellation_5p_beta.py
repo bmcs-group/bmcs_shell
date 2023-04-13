@@ -14,20 +14,18 @@ import random
 class WBTessellation5PBeta(WBNumTessellation):
     name = 'WBTessellation5PBeta'
 
-    wb_cell = bu.Instance(WBCell5ParamBeta, ())
+    wb_cell = bu.EitherType(options=[('WBCell5ParamBeta', WBCell5ParamBeta)], GEO=True)
     tree = ['wb_cell']
-    X_Ia = tr.DelegatesTo('wb_cell')
-    I_Fi = tr.DelegatesTo('wb_cell')
 
     # sigma_sol_num = bu.Int(-1, GEO=True)
     # rho_sol_num = bu.Int(-1, GEO=True)
     sol_num = bu.Int(4, GEO=True)
 
-    # Note: Update traits to 6.3.2 in order for the following command to work!!
-    @tr.observe('wb_cell.+GEO', post_init=True)
-    def update_after_wb_cell_GEO_changes(self, event):
-        self.event_geo = not self.event_geo
-        self.update_plot(self.pb)
+    # # Note: Update traits to 6.3.2 in order for the following command to work!!
+    # @tr.observe('wb_cell.+GEO', post_init=True)
+    # def update_after_wb_cell_GEO_changes(self, event):
+    #     self.event_geo = not self.event_geo
+    #     self.update_plot(self.pb)
 
     ipw_view = bu.View(
         *WBNumTessellation.ipw_view.content,
@@ -73,11 +71,11 @@ class WBTessellation5PBeta(WBNumTessellation):
         return sol
 
     def get_3_cells_angles(self, sol_num=None):
-        a = self.wb_cell.a
-        b = self.wb_cell.b
-        c = self.wb_cell.c
-        gamma = self.wb_cell.gamma
-        beta = self.wb_cell.beta
+        a = self.wb_cell_.a
+        b = self.wb_cell_.b
+        c = self.wb_cell_.c
+        gamma = self.wb_cell_.gamma
+        beta = self.wb_cell_.beta
 
         cos_psi1 = ((b ** 2 - a ** 2) - a * sqrt(a ** 2 + b ** 2) * cos(beta)) / (b * sqrt(a ** 2 + b ** 2) * sin(beta))
         sin_psi1 = sqrt(

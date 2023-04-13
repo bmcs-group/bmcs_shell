@@ -27,13 +27,12 @@ class WBTessellationBase(bu.Model):
     # show_wireframe = bu.Bool(True, GEO=True)
     show_node_labels = bu.Bool(False, GEO=True)
     wb_cell = bu.EitherType(options=[('WBCell4Param', WBCell4Param),
-                                     ('WBCell5Param', WBCell5ParamXur),
-                                     ('WBCell5ParamV2', WBCell5ParamBeta),
-                                     ('WBCell5ParamV3', WBCell5ParamL1),
-                                     ('WBCell5ParamV4', WBCell5ParamPhi),
-                                     ('WBCell2Gammas', WBCell5P2Gammas),
-                                     ('WBCell5ParamV2_2Betas', WBCell5Param2Betas),
-
+                                     ('WBCell5ParamXur', WBCell5ParamXur),
+                                     ('WBCell5ParamBeta', WBCell5ParamBeta),
+                                     ('WBCell5ParamL1', WBCell5ParamL1),
+                                     ('WBCell5ParamPhi', WBCell5ParamPhi),
+                                     ('WBCell5P2Gammas', WBCell5P2Gammas),
+                                     ('WBCell5Param2Betas', WBCell5Param2Betas),
                                      ], GEO=True)
 
     tree = ['wb_cell']
@@ -61,32 +60,24 @@ class WBTessellationBase(bu.Model):
     #         self.update_plot(self.pb)
 
     def _get_br_X_Ia(self, X_Ia, rot=None, X2_Ia=None):
-        if X2_Ia is None:
-            X2_Ia = np.copy(X_Ia)
         if rot is None:
             rot = self.get_sol(X_Ia, X2_Ia, side='r')[0]
         br_X_Ia = self._get_cell_matching_v1_to_v2(X_Ia, np.array([4, 6]), np.array([5, 1]), X2_Ia=X2_Ia)
         return self.rotate_cell(br_X_Ia, np.array([4, 6]), rot)
 
     def _get_ur_X_Ia(self, X_Ia, rot=None, X2_Ia=None):
-        if X2_Ia is None:
-            X2_Ia = np.copy(X_Ia)
         if rot is None:
             rot = self.get_sol(X_Ia, X2_Ia, side='r')[1]
         ur_X_Ia = self._get_cell_matching_v1_to_v2(X_Ia, np.array([6, 2]), np.array([3, 5]), X2_Ia=X2_Ia)
         return self.rotate_cell(ur_X_Ia, np.array([6, 2]), rot)
 
     def _get_ul_X_Ia(self, X_Ia, rot=None, X2_Ia=None):
-        if X2_Ia is None:
-            X2_Ia = np.copy(X_Ia)
         if rot is None:
             rot = self.get_sol(X_Ia, X2_Ia, side='l')[0]
         br_X_Ia = self._get_cell_matching_v1_to_v2(X_Ia, np.array([5, 1]), np.array([4, 6]), X2_Ia=X2_Ia)
         return self.rotate_cell(br_X_Ia, np.array([5, 1]), rot)
 
     def _get_bl_X_Ia(self, X_Ia, rot=None, X2_Ia=None):
-        if X2_Ia is None:
-            X2_Ia = np.copy(X_Ia)
         if rot is None:
             rot = self.get_sol(X_Ia, X2_Ia, side='l')[1]
         br_X_Ia = self._get_cell_matching_v1_to_v2(X_Ia, np.array([3, 5]), np.array([6, 2]), X2_Ia=X2_Ia)

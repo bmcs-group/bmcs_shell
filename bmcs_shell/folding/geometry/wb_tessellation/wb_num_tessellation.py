@@ -194,18 +194,16 @@ class WBNumTessellation(WBNumTessellationBase):
     def update_plot(self, pb):
         if self.k3d_mesh:
             X_Ia, I_Fi  = self.calc_mesh_for_tessellated_cells()
-
-            # TODO: make this cleaner
-            self.X_Ia_shell = X_Ia
-            self.I_Fi_shell = I_Fi
-
             X_Ia = X_Ia.astype(np.float32)
             I_Fi = I_Fi.astype(np.uint32)
-
             self.k3d_mesh['wb_tess_mesh'].vertices = X_Ia
             self.k3d_mesh['wb_tess_mesh'].indices = I_Fi
             self.k3d_wireframe['wb_tess_mesh'].vertices = X_Ia
             self.k3d_wireframe['wb_tess_mesh'].indices = I_Fi
             self.k3d_wireframe['wb_tess_mesh'].width = self.wireframe_width
+
+            # TODO: make this cleaner
+            self.X_Ia_shell = X_Ia
+            self.I_Fi_shell = I_Fi
         else:
             self.setup_plot(pb)
