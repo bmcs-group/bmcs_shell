@@ -60,7 +60,10 @@ class WbParamDesigner(bu.Model):
 
         fig, ax = plt.subplots()
 
-        wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5
+        wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5,
+                                 # trim_half_cells_along_y=True,
+                                 # trim_half_cells_along_x=True,
+                                 # align_outer_nodes_along_x=True
                                  )
 
         for a_i, a in enumerate(a_range):
@@ -135,7 +138,7 @@ class WbParamDesigner(bu.Model):
         # fig_h.show()
         # fig.show()
 
-        print('valid_params=', self.valid_params)
+        # print('valid_params=', self.valid_params)
 
         return self.valid_params
 
@@ -229,7 +232,8 @@ class WbParamDesigner(bu.Model):
         ax_3d.set_ylabel(r'$\zeta$', fontsize=10)
         ax_3d.plot_surface(etas_grid, zetas_grid, self.var1_grid_agnn[a_i, gamma_i, ...],
                            linewidth=0, antialiased=False, cmap=cm.coolwarm)
-        # fig_3d.show()
+        fig_3d.show()
+        return fig_3d, ax_3d
 
     def get_longest_contour_for_var(self, ax, var_name_and_value, var_grid, a_i, gamma_i, gamma):
         ax.set_title(var_name_and_value['name'] + '=' + str(var_name_and_value['value']) + ' contours')
