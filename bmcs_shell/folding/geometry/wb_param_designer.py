@@ -10,12 +10,16 @@ from bmcs_shell.api import WBTessellation4P
 from matplotlib import cm
 from scipy.interpolate import interp1d
 
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p_ss import WBTessellation4PSS
+
 
 def round_to(value, base=5):
     return base * round(value / base)
 
 
 class WbParamDesigner(bu.Model):
+    ss_shell = False
+
     n = bu.Int(50)
     rand_color = bu.Array
     var1_grid_agnn = bu.Array
@@ -60,11 +64,18 @@ class WbParamDesigner(bu.Model):
 
         fig, ax = plt.subplots()
 
-        wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5,
+        if self.ss_shell:
+            wbt4p = WBTessellation4PSS(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5,
                                  # trim_half_cells_along_y=True,
                                  # trim_half_cells_along_x=True,
                                  # align_outer_nodes_along_x=True
                                  )
+        else:
+            wbt4p = WBTessellation4P(n_phi_plus=n_mid_cells + 1, n_x_plus=2, wireframe_width=5,
+                                     # trim_half_cells_along_y=True,
+                                     # trim_half_cells_along_x=True,
+                                     # align_outer_nodes_along_x=True
+                                     )
 
         for a_i, a in enumerate(a_range):
             print('a =', np.round(a, 1))
@@ -88,7 +99,10 @@ class WbParamDesigner(bu.Model):
                         eta = etas_grid[i_eta, j_zeta]
                         zeta = zetas_grid[i_eta, j_zeta]
 
-                        wbt4p.trait_set(b=eta * a, c=zeta * a)
+                        if self.ss_shell:
+                            wbt4p.trait_set(b=eta * a)
+                        else:
+                            wbt4p.trait_set(b=eta * a, c=zeta * a)
 
                         self.var1_grid_agnn[a_i, gamma_i, i_eta, j_zeta] = self.get_var_value(var1, wbt4p)
 
@@ -102,7 +116,10 @@ class WbParamDesigner(bu.Model):
                 # --------------------------------------------------------------
                 var2_array = []
                 for eta, zeta in zip(self.eta_of_var1[a_i][gamma_i], self.zeta_of_var1[a_i][gamma_i]):
-                    wbt4p.trait_set(b=eta * a, c=zeta * a)
+                    if self.ss_shell:
+                        wbt4p.trait_set(b=eta * a)
+                    else:
+                        wbt4p.trait_set(b=eta * a, c=zeta * a)
                     var2_array.append(self.get_var_value(var2, wbt4p))
 
                 ax_h.plot(self.eta_of_var1[a_i][gamma_i], var2_array, '--', label='eta, $\gamma$=' + str(round(gamma, 1)), color=color)
@@ -118,20 +135,33 @@ class WbParamDesigner(bu.Model):
 
             if var3 is None:
                 print(valid_var1_2_params)
-                valid_params_for_current_a = [
-                    dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1)
-                    for a, gamma, eta, zeta in valid_var1_2_params]
+                if self.ss_shell:
+                    valid_params_for_current_a = [
+                        dict(a=a, b=a * eta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1)
+                        for a, gamma, eta, zeta in valid_var1_2_params]
+                else:
+                    valid_params_for_current_a = [
+                        dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1)
+                        for a, gamma, eta, zeta in valid_var1_2_params]
+
                 self.valid_params.append(valid_params_for_current_a)
             else:
                 var3_array = []
                 for params in valid_var1_2_params:
                     a, gamma, eta, zeta = params
-                    wbt4p.trait_set(a=a, b=eta * a, c=zeta * a, gamma=np.deg2rad(gamma))
+                    if self.ss_shell:
+                        wbt4p.trait_set(a=a, b=eta * a, gamma=np.deg2rad(gamma))
+                    else:
+                        wbt4p.trait_set(a=a, b=eta * a, c=zeta * a, gamma=np.deg2rad(gamma))
                     var3_array.append(self.get_var_value(var3, wbt4p))
                 gamma, eta, zeta = [self.interp1(var3['value'], var3_array, valid_var1_2_params[:, i]) for i in
                                     [1, 2, 3]]
-                self.valid_params.append(
-                    dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
+                if self.ss_shell:
+                    self.valid_params.append(
+                        dict(a=a, b=a * eta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
+                else:
+                    self.valid_params.append(
+                        dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
 
         ax_h.legend()
 
@@ -140,7 +170,7 @@ class WbParamDesigner(bu.Model):
 
         # print('valid_params=', self.valid_params)
 
-        return self.valid_params
+        return self.valid_params, fig_h
 
     # These span, height and width function works for WBTessellation4P and the calculations consider the shell
     #  after applying the trimming of half cells along y and x and after aligning (see WBTessellation4P)
