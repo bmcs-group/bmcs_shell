@@ -37,5 +37,4 @@ class WBTessellation4PEx(WBTessellation4P):
         bu.Item('show_nodes'),
         bu.Item('trim_half_cells_along_y'),
         bu.Item('trim_half_cells_along_x'),
-        bu.Item('align_outer_nodes_along_x'),
     )

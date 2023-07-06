@@ -46,7 +46,6 @@ class WBTessellation4P(bu.Model):
 
     trim_half_cells_along_y = bu.Bool(False, GEO=True)
     trim_half_cells_along_x = bu.Bool(False, GEO=True)
-    align_outer_nodes_along_x = bu.Bool(False, GEO=True)
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -71,7 +70,6 @@ class WBTessellation4P(bu.Model):
         bu.Item('show_nodes'),
         bu.Item('trim_half_cells_along_y'),
         bu.Item('trim_half_cells_along_x'),
-        bu.Item('align_outer_nodes_along_x'),
     )
 
     def get_phi_range(self, delta_phi):
@@ -219,7 +217,7 @@ class WBTessellation4P(bu.Model):
     def _get_X_Ia(self):
         idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
-        if self.align_outer_nodes_along_x:
+        if self.trim_half_cells_along_x:
             _, cells_out_xyj = self.cells_in_out_xyj
             X_Ia[cells_out_xyj[-1, :, 3]] = (X_Ia[cells_out_xyj[-1, :, 3]] + X_Ia[cells_out_xyj[-1, :, 4]]) / 2
             X_Ia[cells_out_xyj[0, :, 4]] = (X_Ia[cells_out_xyj[0, :, 3]] + X_Ia[cells_out_xyj[0, :, 4]]) / 2
