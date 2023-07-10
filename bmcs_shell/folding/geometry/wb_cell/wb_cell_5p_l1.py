@@ -35,8 +35,20 @@ class WBCell5ParamL1(WBCell):
         bu.Item('c', latex='c', editor=bu.FloatRangeEditor(
             low=1e-6, high=2000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('u1_sqrt_positive'),
+        bu.Item('gamma', latex=r'\gamma', editor=bu.FloatEditor(), readonly=True),
         *WBCell.ipw_view.content,
     )
+
+    gamma = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_gamma(self):
+        a = self.a
+        b = self.b
+        c = self.c
+        v_min = np.max([0., (a ** 2 - b ** 2) * c / (a ** 2 + b ** 2)])
+        v_max = c
+        v = v_min + (v_max - v_min) * self.v
+        return np.round(np.arcsin(v / c), 4)
 
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
@@ -62,7 +74,7 @@ class WBCell5ParamL1(WBCell):
         w_max = (4 * v / c) * (a * v + b * k)
         w = w_min + (w_max - w_min) * self.w
         print('w = ', w)
-        print('Sym cell when w = 4 * a * v = ', str(4 * a * v))
+        print('Sym cell when w = ', str(4 * a * v))
 
         u1_sign = 1 if self.u1_sqrt_positive else -1
         u1_tmp1 = w * (
