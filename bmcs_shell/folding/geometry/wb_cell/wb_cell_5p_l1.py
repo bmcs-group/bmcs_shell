@@ -16,10 +16,10 @@ class WBCell5ParamL1(WBCell):
 
     v = bu.Float(0.5, GEO=True)
     w = bu.Float(0.5, GEO=True)
-    a = bu.Float(500, GEO=True)
-    b = bu.Float(500, GEO=True)
-    c = bu.Float(500, GEO=True)
-    u1_sqrt_positive = bu.Bool(False, GEO=True)
+    a = bu.Float(1000, GEO=True)
+    b = bu.Float(1500, GEO=True)
+    c = bu.Float(800, GEO=True)
+    u1_sqrt_positive = bu.Bool(True, GEO=True)
 
     continuous_update = True
 
@@ -62,15 +62,17 @@ class WBCell5ParamL1(WBCell):
         w_max = (4 * v / c) * (a * v + b * k)
         w = w_min + (w_max - w_min) * self.w
         print('w = ', w)
-        print('Sym cell when w = ', str(2 * np.sqrt(a * v)))
+        print('Sym cell when w = 4 * a * v = ', str(4 * a * v))
 
         u1_sign = 1 if self.u1_sqrt_positive else -1
-        u1_tmp1 = a * c * w ** 2 - w * (2 * b ** 2 * c ** 2 + 4 * (a ** 2 - b ** 2) * k ** 2) - 16 * a ** 3 * c * v ** 2
+        u1_tmp1 = w * (
+                    8 * k ** 2 * a ** 2 - 4 * b ** 2 * c ** 2 + 8 * b ** 2 * v ** 2) + 32 * a ** 3 * c * v ** 2 - 2 * a * c * w ** 2
         u1_sqrt_tmp1 = 4 * a * c - w
-        u1_sqrt_tmp2 = a ** 2 * (4 * a * c - w) - b ** 2 * (4 * a * c + w)
-        u1_sqrt_tmp3 = 16 * a ** 2 * v ** 4 - 16 * b ** 2 * v ** 2 * k ** 2 - 8 * a * c * v ** 2 * w + c ** 2 * w ** 2
-        u1 = 4 * (u1_tmp1 + u1_sign * np.sqrt(u1_sqrt_tmp1 * u1_sqrt_tmp2 * u1_sqrt_tmp3))
-        u = u1 / ((a * c - w) ** 2 - 4 * (a ** 2 + b ** 2) * c ** 2)
+        u1_sqrt_tmp2 = 4 * a ** 3 * c - 4 * a * b ** 2 * c - a ** 2 * w - b ** 2 * w
+        u1_sqrt_tmp3 = 16 * v ** 4 * (
+                    a ** 2 + b ** 2) - 16 * b ** 2 * c ** 2 * v ** 2 - 8 * a * c * v ** 2 * w + c ** 2 * w ** 2
+        u1 = u1_tmp1 + u1_sign * 2 * np.sqrt(u1_sqrt_tmp1 * u1_sqrt_tmp2 * u1_sqrt_tmp3)
+        u = u1 / (4 * b ** 2 * c ** 2 + 4 * a * c * w - w ** 2)
 
         M = np.array([0, 0, 0])  # Mittelpunkt
         Uro = (1 / (4 * v * k)) * np.array(
@@ -79,7 +81,6 @@ class WBCell5ParamL1(WBCell):
              v * (4 * a * c - w)]
         )
         Ulu = np.array([-Uro[0], -Uro[1], Uro[2]])
-        # TODO, the visualization shows a problem here
         Ulo = (1 / (4 * v * k)) * np.array(
             [-u * k,
              np.sqrt(16 * (a ** 2 + b ** 2) * v ** 2 * k ** 2 - u ** 2 * k ** 2 - (u - 4 * a * c) ** 2 * v ** 2),
