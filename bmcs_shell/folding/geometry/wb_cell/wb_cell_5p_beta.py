@@ -63,6 +63,7 @@ class WBCell5ParamBeta(WBCell):
             low=0, high=50, n_steps=1001, continuous_update=continuous_update)),
         bu.Item('zeta', latex='\zeta', editor=bu.FloatRangeEditor(
             low=0, high=50, n_steps=1001, continuous_update=continuous_update)),
+        bu.Item('beta', latex=r'\beta', editor=bu.FloatEditor(), readonly=True),
         *WBCell.ipw_view.content,
     )
 

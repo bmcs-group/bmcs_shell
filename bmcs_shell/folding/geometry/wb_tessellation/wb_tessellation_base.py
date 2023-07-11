@@ -14,7 +14,7 @@ from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2gammas import WBCell5P2Gamm
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2betas import WBCell5Param2Betas
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_phi import WBCell5ParamPhi
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_beta import WBCell5ParamBeta
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_l1 import WBCell5ParamL1
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_vw import WBCell5ParamVW
 
 
 class WBTessellationBase(bu.Model):
@@ -29,7 +29,7 @@ class WBTessellationBase(bu.Model):
     wb_cell = bu.EitherType(options=[('WBCell4Param', WBCell4Param),
                                      ('WBCell5ParamXur', WBCell5ParamXur),
                                      ('WBCell5ParamBeta', WBCell5ParamBeta),
-                                     ('WBCell5ParamL1', WBCell5ParamL1),
+                                     ('WBCell5ParamVW', WBCell5ParamVW),
                                      ('WBCell5ParamPhi', WBCell5ParamPhi),
                                      ('WBCell5P2Gammas', WBCell5P2Gammas),
                                      ('WBCell5Param2Betas', WBCell5Param2Betas),

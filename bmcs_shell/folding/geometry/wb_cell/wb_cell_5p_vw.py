@@ -1,13 +1,12 @@
 import bmcs_utils.api as bu
-import k3d
-import traits.api as tr
 import numpy as np
+import traits.api as tr
+
+from bmcs_shell.folding.geometry.math_utils import get_angle_between_vectors
 from bmcs_shell.folding.geometry.wb_cell.wb_cell import WBCell
-from numpy import sin, cos, sqrt
-from scipy.optimize import root
 
 
-class WBCell5ParamL1(WBCell):
+class WBCell5ParamVW(WBCell):
     name = 'WBCell5ParamL1'
 
     plot_backend = 'k3d'
@@ -36,6 +35,7 @@ class WBCell5ParamL1(WBCell):
             low=1e-6, high=2000, n_steps=101, continuous_update=continuous_update)),
         bu.Item('u1_sqrt_positive'),
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatEditor(), readonly=True),
+        bu.Item('beta', latex=r'\beta', editor=bu.FloatEditor(), readonly=True),
         *WBCell.ipw_view.content,
     )
 
@@ -49,6 +49,13 @@ class WBCell5ParamL1(WBCell):
         v_max = c
         v = v_min + (v_max - v_min) * self.v
         return np.round(np.arcsin(v / c), 4)
+
+    beta = tr.Property(depends_on='+GEO')
+    @tr.cached_property
+    def _get_beta(self):
+        OV_r = self.X_Ia[5]
+        OU_ul = self.X_Ia[4]
+        return get_angle_between_vectors(OV_r, OU_ul)
 
     X_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension

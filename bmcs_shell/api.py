@@ -17,7 +17,7 @@ from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_phi import WBCell5ParamPhi
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_xur import WBCell5ParamXurSymb
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_beta import WBCell5ParamBeta
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2betas import WBCell5Param2Betas
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_l1 import WBCell5ParamL1
+from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_vw import WBCell5ParamVW
 # from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_v3_old_with_moving_cell_center import WBCell5ParamV3
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p import WBTessellation4P
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_4p_flat import WBTessellation4PFlat
@@ -31,7 +31,7 @@ from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_base import WBT
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_invest import WBNumTessellationInvest
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation import WBNumTessellation
 from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_5p_beta import WBTessellation5PBeta
-from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_5p_l1 import WBTessellation5PL1
+from bmcs_shell.folding.geometry.wb_tessellation.wb_tessellation_5p_vw import WBTessellation5PVW
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_grad import WBNumTessellationGrad
 from bmcs_shell.folding.geometry.wb_tessellation.wb_num_tessellation_grad_invest import WBNumTessellationGradInvest
 from bmcs_shell.folding.analysis.abaqus.abaqus_link_simple import AbaqusLink
