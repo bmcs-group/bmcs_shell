@@ -1,8 +1,8 @@
-# BMCS Shells
+# BMCS Shell
 
 ![folded textile reinforced concrete shell based on waterbomb origami pattern](assets/wb_concrete_shell.jpg "Screenshot from the interactive waterbomb geometries generator app")
 
-Development framework for geometry development, numerical modeling, and production of brittle-matrix composite shells.
+Framework for numerical modeling and the development of geometries and production processes of brittle-matrix composite shells.
 Currently, the focus is on developing flexible foldable shell geometries based on origami waterbomb patterns.
 
 ## Content
