@@ -115,21 +115,27 @@ class WbParamDesigner(bu.Model):
                 # Find the possible shell heights considering the fixed var value
                 # --------------------------------------------------------------
                 var2_array = []
-                for eta, zeta in zip(self.eta_of_var1[a_i][gamma_i], self.zeta_of_var1[a_i][gamma_i]):
+                eta_of_var1_ai_gi = self.eta_of_var1[a_i][gamma_i]
+                zeta_of_var1_ai_gi = self.zeta_of_var1[a_i][gamma_i]
+                for eta, zeta in zip(eta_of_var1_ai_gi, zeta_of_var1_ai_gi):
                     if self.ss_shell:
                         wbt4p.trait_set(b=eta * a)
                     else:
                         wbt4p.trait_set(b=eta * a, c=zeta * a)
                     var2_array.append(self.get_var_value(var2, wbt4p))
 
-                ax_h.plot(self.eta_of_var1[a_i][gamma_i], var2_array, '--', label='eta, $\gamma$=' + str(round(gamma, 1)), color=color)
-                ax_h.plot(self.zeta_of_var1[a_i][gamma_i], var2_array, label='zeta, $\gamma$=' + str(round(gamma, 1)), color=color)
+                ax_h.plot(eta_of_var1_ai_gi, var2_array, '--', label='eta, $\gamma$=' + str(round(gamma, 1)), color=color)
+                ax_h.plot(zeta_of_var1_ai_gi, var2_array, label='zeta, $\gamma$=' + str(round(gamma, 1)), color=color)
 
-                eta_inter, zeta_inter = self.interp(var2['value'], var2_array, self.eta_of_var1[a_i][gamma_i], self.zeta_of_var1[a_i][gamma_i])
-                valid_var1_2_params.append([a, gamma, eta_inter, zeta_inter])
-
-                ax_h.plot(eta_inter, var2['value'], 'o', color=color)
-                ax_h.plot(zeta_inter, var2['value'], 'x', color=color)
+                if self.ss_shell:
+                    mask = (np.array(var2_array) >= 0.90 * var2['value']) & (np.array(var2_array) <= 1.1 * var2['value'])
+                    if len(eta_of_var1_ai_gi[mask]) != 0:
+                        valid_var1_2_params.append([a, gamma, eta_of_var1_ai_gi[mask][0], zeta_of_var1_ai_gi[mask][0]])
+                else:
+                    eta_inter, zeta_inter = self.interp(var2['value'], var2_array, eta_of_var1_ai_gi, zeta_of_var1_ai_gi)
+                    valid_var1_2_params.append([a, gamma, eta_inter, zeta_inter])
+                    ax_h.plot(eta_inter, var2['value'], 'o', color=color)
+                    ax_h.plot(zeta_inter, var2['value'], 'x', color=color)
 
             valid_var1_2_params = np.array(valid_var1_2_params)
 
@@ -154,12 +160,16 @@ class WbParamDesigner(bu.Model):
                     else:
                         wbt4p.trait_set(a=a, b=eta * a, c=zeta * a, gamma=np.deg2rad(gamma))
                     var3_array.append(self.get_var_value(var3, wbt4p))
-                gamma, eta, zeta = [self.interp1(var3['value'], var3_array, valid_var1_2_params[:, i]) for i in
-                                    [1, 2, 3]]
                 if self.ss_shell:
+                    mask = (np.array(var3_array) >= 0.9 * var3['value']) & (
+                                np.array(var3_array) <= 1.1 * var3['value'])
+                    gamma, eta, zeta = valid_var1_2_params[:, 1][mask], valid_var1_2_params[:, 2][mask], \
+                                       valid_var1_2_params[:, 3][mask]
                     self.valid_params.append(
                         dict(a=a, b=a * eta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
                 else:
+                    gamma, eta, zeta = [self.interp1(var3['value'], var3_array, valid_var1_2_params[:, i]) for i in
+                                        [1, 2, 3]]
                     self.valid_params.append(
                         dict(a=a, b=a * eta, c=a * zeta, gamma=np.deg2rad(gamma), n_phi_plus=n_mid_cells + 1))
 
