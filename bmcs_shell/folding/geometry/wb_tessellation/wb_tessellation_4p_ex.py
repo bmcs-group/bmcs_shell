@@ -30,11 +30,6 @@ class WBTessellation4PEx(WBTessellation4P):
         )
 
     ipw_view = bu.View(
-        # bu.Item('wb_cell'),
         *WBCell4ParamEx.ipw_view.content,
-        bu.Item('n_phi_plus', latex = r'n_\phi'),
-        bu.Item('n_x_plus', latex = r'n_x'),
-        bu.Item('show_nodes'),
-        bu.Item('trim_half_cells_along_y'),
-        bu.Item('trim_half_cells_along_x'),
+        *WBTessellation4P.ipw_view_items
     )

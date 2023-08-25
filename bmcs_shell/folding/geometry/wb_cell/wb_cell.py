@@ -73,6 +73,7 @@ class WBCell(bu.Model):
         return self.I_Li[4:]
 
     def setup_plot(self, pb):
+        self.pb = pb
         k3d.plot().fetch_screenshot()
         X_Ia = self.X_Ia.astype(np.float32)
         I_Fi = self.I_Fi.astype(np.uint32)
@@ -129,16 +130,8 @@ class WBCell(bu.Model):
         pb.objects[self.K3D_WIREFRAME] = k3d_mesh_wireframe
 
     def _add_nodes_labels_to_fig(self, pb, X_Ia):
-        text_list = []
-        for I, X_a in enumerate(X_Ia):
-            k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False, size=0.8, color=0x00FF00)
-            pb.plot_fig += k3d_text
-            text_list.append(k3d_text)
-        pb.objects[self.K3D_NODES_LABELS] = text_list
-
-        # New impl, but it didn't work on current k3d jupyter extension
-        # node_indicies_I = np.arange(X_Ia.shape[0])
-        # node_indicies_str_list = [str(idx) for idx in node_indicies_I]
-        # k3d_text = k3d.text(node_indicies_str_list, position=X_Ia.flatten(), label_box=False, size=0.8, color=0x00FF00)
-        # pb.plot_fig += k3d_text
-        # pb.objects[self.K3D_NODES_LABELS] = k3d_text
+        node_indicies_I = np.arange(X_Ia.shape[0])
+        node_indicies_str_list = [str(idx) for idx in node_indicies_I]
+        k3d_text = k3d.text(node_indicies_str_list, position=X_Ia.flatten(), label_box=False, size=0.8, color=0x00FF00)
+        pb.plot_fig += k3d_text
+        pb.objects[self.K3D_NODES_LABELS] = k3d_text

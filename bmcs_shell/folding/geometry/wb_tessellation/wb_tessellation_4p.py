@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p import \
     WBCell4Param, axis_angle_to_q, qv_mult
+from bmcs_shell.folding.geometry.wb_geo_utils import WBGeoUtils
 
 from bmcs_shell.folding.utils.dihedral_angles import get_dih_angles
 
@@ -44,8 +45,50 @@ class WBTessellation4P(bu.Model):
     NODES = 'k3d_nodes'
     NODES_LABELS = 'k3d_nodes_labels'
 
+    constraint_node_idx = bu.Int(0, GEO=True)
+    constraint_coord_idx = bu.Int(0, GEO=True)
+
     trim_half_cells_along_y = bu.Bool(False, GEO=True)
     trim_half_cells_along_x = bu.Bool(False, GEO=True)
+
+    show_folding_path_btn = bu.Bool()
+    export_obj_file_btn = bu.Bool()
+    export_fold_file_btn = bu.Bool()
+    # show_folding_path_btn = bu.Button()
+    # export_obj_file_btn = bu.Button()
+    # export_fold_file_btn = bu.Button()
+
+    @tr.observe('show_folding_path_btn')
+    def show_folding_path_btn_click(self, event=None):
+        gamma_tmp = self.gamma
+        n_gamma = 30
+        X_gIa = np.zeros((n_gamma, *self.X_Ia_trimmed.shape))
+        for i, gamma in enumerate(np.linspace(np.pi / 2 - 0.001, self.gamma, n_gamma)):
+            self.gamma = gamma
+            X_gIa[i, ...] = self.X_Ia_trimmed
+        self.gamma = gamma_tmp
+
+        # Plotting
+        k3d_name = 'folding_path'
+        if k3d_name in self.pb.objects:
+            self.pb.clear_object(k3d_name)
+
+        self.pb.objects[k3d_name] = []
+
+        Xg_Ia = X_gIa.reshape((X_gIa.shape[0] * X_gIa.shape[1], X_gIa.shape[2]))
+        plt_points = k3d.points(positions=Xg_Ia,
+                                point_size=70,
+                                shader='3d',
+                                color=0x3f6bc5)
+        self.pb.objects[k3d_name].append(plt_points)
+        self.pb.plot_fig += plt_points
+
+        base_lines = k3d.lines(X_gIa[0, :, :], self.I_Fi_trimmed,
+                               shader='mesh', width=30,
+                               color=0xff0000)
+        self.pb.objects[k3d_name].append(base_lines)
+        self.pb.plot_fig += base_lines
+
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
@@ -62,14 +105,26 @@ class WBTessellation4P(bu.Model):
             c_high=self.c_high,
         )
 
-    ipw_view = bu.View(
-        # bu.Item('wb_cell'),
-        *WBCell4Param.ipw_view.content,
+    ipw_view_items = [
         bu.Item('n_phi_plus', latex = r'n_\phi'),
         bu.Item('n_x_plus', latex = r'n_x'),
         bu.Item('show_nodes'),
         bu.Item('trim_half_cells_along_y'),
         bu.Item('trim_half_cells_along_x'),
+        bu.Item('constraint_node_idx', latex=r'n_{i\mathrm{, node}}'),
+        bu.Item('constraint_coord_idx', latex=r'c_{i\mathrm{, constraint}}'),
+        # The following buttons are not showing due to a problem in bmcs_utils left panel: only button are
+        # not pushing the panel to grow
+        # bu.Item('show_folding_path_btn', editor=bu.ButtonEditor(icon='eye', label='Show folding path')),
+        # bu.Item('export_obj_file_btn', editor=bu.ButtonEditor(icon='file', label='Export .obj')),
+        # bu.Item('export_fold_file_btn', editor=bu.ButtonEditor(icon='file', label='Export .fold')),
+        bu.Item('show_folding_path_btn'),
+        bu.Item('export_obj_file_btn'),
+        bu.Item('export_fold_file_btn')]
+
+    ipw_view = bu.View(
+        *WBCell4Param.ipw_view.content,
+        *ipw_view_items,
     )
 
     def get_phi_range(self, delta_phi):
@@ -113,6 +168,11 @@ class WBTessellation4P(bu.Model):
     def _get_n_cells(self):
         n_cells, _, _, _, _, _, _ = self.cell_map
         return n_cells
+
+    X_Ia_const_change = tr.Property(depends_on='constraint_node_idx, constraint_coord_idx')
+    @tr.cached_property
+    def _get_X_Ia_const_change(self):
+        return np.copy(self.X_Ia_no_constraint)
 
     X_cells_Ia = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates of uncoupled cells
@@ -210,11 +270,12 @@ class WBTessellation4P(bu.Model):
         I_Li = (I_Li_cell[np.newaxis, :, :] + i_range[:, np.newaxis, np.newaxis]).reshape(-1, 2)
         return I_Li
 
-    X_Ia = tr.Property(depends_on='+GEO')
+
+    X_Ia_no_constraint = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
     '''
     @tr.cached_property
-    def _get_X_Ia(self):
+    def _get_X_Ia_no_constraint(self):
         idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
         if self.trim_half_cells_along_x:
@@ -222,6 +283,23 @@ class WBTessellation4P(bu.Model):
             X_Ia[cells_out_xyj[-1, :, 3]] = (X_Ia[cells_out_xyj[-1, :, 3]] + X_Ia[cells_out_xyj[-1, :, 4]]) / 2
             X_Ia[cells_out_xyj[0, :, 4]] = (X_Ia[cells_out_xyj[0, :, 3]] + X_Ia[cells_out_xyj[0, :, 4]]) / 2
         return X_Ia
+
+    X_Ia = tr.Property(depends_on='+GEO')
+    '''Array with nodal coordinates I - node, a - dimension
+    '''
+    @tr.cached_property
+    def _get_X_Ia(self):
+        X_Ia = self.X_Ia_no_constraint
+        if self.constraint_coord_idx == 0 and self.constraint_node_idx == 0:
+            return X_Ia
+        else:
+            X_Ia_const_change = self.X_Ia_const_change
+            coord_idx = self.constraint_coord_idx
+            node_idx = self.constraint_node_idx
+            diff = X_Ia[node_idx, coord_idx] - X_Ia_const_change[node_idx, coord_idx]
+            const_X_Ia = np.copy(X_Ia)
+            const_X_Ia[:, coord_idx] = X_Ia[:, coord_idx] - diff[np.newaxis]
+            return const_X_Ia
 
     X_Ia_trimmed = tr.Property(depends_on='+GEO')
     '''Array with nodal coordinates I - node, a - dimension
@@ -481,12 +559,11 @@ class WBTessellation4P(bu.Model):
                 pb.clear_object(self.NODES_LABELS)
 
     def _add_nodes_labels_to_fig(self, pb, X_Ia):
-        text_list = []
-        for I, X_a in enumerate(X_Ia):
-            k3d_text = k3d.text('%g' % I, tuple(X_a), label_box=False, size=0.8, color=0x00FF00)
-            pb.plot_fig += k3d_text
-            text_list.append(k3d_text)
-        pb.objects[self.NODES_LABELS] = text_list
+        node_indicies_I = np.arange(X_Ia.shape[0])
+        node_indicies_str_list = [str(idx) for idx in node_indicies_I]
+        k3d_text = k3d.text(node_indicies_str_list, position=X_Ia.flatten(), label_box=False, size=0.8, color=0x00FF00)
+        pb.plot_fig += k3d_text
+        pb.objects[self.NODES_LABELS] = k3d_text
 
     def _add_wireframe_to_fig(self, pb, X_Ia, I_Fi):
         k3d_mesh_wireframe = k3d.lines(X_Ia,
@@ -689,3 +766,19 @@ class WBTessellation4P(bu.Model):
 
         with open(path, 'w') as outfile:
             json.dump(output_data, outfile, sort_keys=True, indent=4)
+
+    def get_file_name(self):
+        file_name = 'a_' + str(np.round(self.a, 1)) + '_b_' + str(np.round(self.b, 1))
+        file_name += '_c_' + str(np.round(self.c, 1)) + '_gamma_' + str(np.round(self.gamma, 2))
+        file_name += '_n_x_' + str(self.n_x_plus) + '_n_phi_' + str(self.n_phi_plus)
+        return file_name
+
+    @tr.observe('export_obj_file_btn')
+    def export_obj_file(self, event=None):
+        file_name = self.get_file_name() + '.obj'
+        WBGeoUtils.export_obj_file(self, file_name)
+
+    @tr.observe('export_fold_file_btn')
+    def export_fold_file_btn_click(self, event=None):
+        file_name = self.get_file_name() + '.fold'
+        self.export_fold_file(path=file_name)
