@@ -46,11 +46,12 @@ class WBTessellation4P(bu.Model):
     NODES_LABELS = 'k3d_nodes_labels'
 
     constraint_node_idx = bu.Int(0, GEO=True)
-    constraint_coord_idx = bu.Int(0, GEO=True)
+    constraint_coord_idx = bu.Int(0, GEO=True) # 0 for x, 1 for y, 2 for z, -1 for complete fix
 
     trim_half_cells_along_y = bu.Bool(False, GEO=True)
     trim_half_cells_along_x = bu.Bool(False, GEO=True)
 
+    plot_points_diff_btn = bu.Bool()
     show_folding_path_btn = bu.Bool()
     export_obj_file_btn = bu.Bool()
     export_fold_file_btn = bu.Bool()
@@ -120,7 +121,9 @@ class WBTessellation4P(bu.Model):
         # bu.Item('export_fold_file_btn', editor=bu.ButtonEditor(icon='file', label='Export .fold')),
         bu.Item('show_folding_path_btn'),
         bu.Item('export_obj_file_btn'),
-        bu.Item('export_fold_file_btn')]
+        bu.Item('export_fold_file_btn'),
+        bu.Item('plot_points_diff_btn'),
+    ]
 
     ipw_view = bu.View(
         *WBCell4Param.ipw_view.content,
@@ -296,9 +299,13 @@ class WBTessellation4P(bu.Model):
             X_Ia_const_change = self.X_Ia_const_change
             coord_idx = self.constraint_coord_idx
             node_idx = self.constraint_node_idx
-            diff = X_Ia[node_idx, coord_idx] - X_Ia_const_change[node_idx, coord_idx]
             const_X_Ia = np.copy(X_Ia)
-            const_X_Ia[:, coord_idx] = X_Ia[:, coord_idx] - diff[np.newaxis]
+            if coord_idx == -1:
+                diff = X_Ia[node_idx, :] - X_Ia_const_change[node_idx, :]
+                const_X_Ia[:, :] = X_Ia[:, :] - diff[np.newaxis]
+            else:
+                diff = X_Ia[node_idx, coord_idx] - X_Ia_const_change[node_idx, coord_idx]
+                const_X_Ia[:, coord_idx] = X_Ia[:, coord_idx] - diff[np.newaxis]
             return const_X_Ia
 
     X_Ia_trimmed = tr.Property(depends_on='+GEO')
@@ -502,7 +509,9 @@ class WBTessellation4P(bu.Model):
         k3d_mesh = k3d.mesh(X_Ia,
                                  I_Fi,
                                  color=0x999999,
-                                 side='double')
+                                 side='double',
+                            opacity=0.9
+                            )
 
         pb.objects['k3d_mesh'] = k3d_mesh
         pb.plot_fig += k3d_mesh
@@ -766,6 +775,21 @@ class WBTessellation4P(bu.Model):
 
         with open(path, 'w') as outfile:
             json.dump(output_data, outfile, sort_keys=True, indent=4)
+
+    @tr.observe('plot_points_diff_btn')
+    def plot_points_diff(self, event=None):
+        gamma_tmp = self.gamma
+        self.gamma = np.pi / 2 - 0.0001
+        X_Ia0 = self.X_Ia_trimmed
+        self.gamma = gamma_tmp
+        X_Ia1 = self.X_Ia_trimmed
+        X_Ia_diff = X_Ia1 - X_Ia0
+        print('Node num.: Coords. in folded state (x_diff, y_diff, z_diff)')
+        for i, (x_i, y_i, z_i) in zip(np.arange(X_Ia_diff.shape[0]), X_Ia_diff):
+            x_ro = int(np.round(x_i))
+            y_ro = int(np.round(y_i))
+            z_ro = int(np.round(z_i))
+            print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
 
     def get_file_name(self):
         file_name = 'a_' + str(np.round(self.a, 1)) + '_b_' + str(np.round(self.b, 1))
