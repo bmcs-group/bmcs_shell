@@ -16,7 +16,7 @@ class WBCell4ParamEx(WBCell4Param):
 
     ipw_view = bu.View(
         bu.Item('gamma', latex=r'\gamma', editor=bu.FloatRangeEditor(
-            low=1e-6, high=np.pi / 2, n_steps=401, continuous_update=True)),
+            low=1e-6, high=np.pi / 2 - 0.001, n_steps=401, continuous_update=True)),
         bu.Item('a', latex='a^*', editor=bu.FloatRangeEditor(
             low=1e-6, high_name='a_high', n_steps=401, continuous_update=True)),
         bu.Item('b', latex='b', editor=bu.FloatRangeEditor(

@@ -363,35 +363,46 @@ class WBTessellation4P(bu.Model):
             cells_in_xyfi_, cells_out_xyfi_ = self.cells_in_out_xyfi
             cells_in_xyfi = np.copy(cells_in_xyfi_)
             cells_out_xyfi = np.copy(cells_out_xyfi_)
-
+            along_x_first_cell, along_x_last_cell, along_y_first_cell, along_y_last_cell = self._get_idx_of_facets_to_trim()
             if self.trim_half_cells_along_y:
                 # Set extended facets to -1 indicies (to mark it for later removal)
-                cells_out_xyfi[:, 0, (0, 2, 4), :] = -1
-                cells_out_xyfi[:, -1, (1, 3, 5), :] = -1
+                cells_out_xyfi[:, 0, along_y_first_cell, :] = -1
+                cells_out_xyfi[:, -1, along_y_last_cell, :] = -1
             if self.trim_half_cells_along_x:
                 # Remove half cells along x
-                cells_out_xyfi[0, :, (4, 5), :] = -1
-                cells_out_xyfi[-1, :, (2, 3), :] = -1
+                cells_out_xyfi[0, :, along_x_first_cell, :] = -1
+                cells_out_xyfi[-1, :, along_x_last_cell, :] = -1
 
             # Delete extended facets
             I_Fi = np.vstack((cells_in_xyfi.reshape((-1, 3)), cells_out_xyfi.reshape((-1, 3))))
             F_m = I_Fi.flatten()
             I_Fi = np.delete(F_m, np.where(F_m == -1)).reshape((-1, 3))
-
         return I_Fi
+
+    def _get_idx_of_facets_to_trim(self):
+        along_y_first_cell = (0, 2, 4)
+        along_y_last_cell = (1, 3, 5)
+        along_x_first_cell = (4, 5)
+        along_x_last_cell = (2, 3)
+        return along_x_first_cell, along_x_last_cell, along_y_first_cell, along_y_last_cell
 
     cells_in_out_xyfi = tr.Property(depends_on='+GEO')
     ''' Convenience indexing for inner and outer cells in the tessellation where (x, y cell index along x and y; 
     f for cell facet; i facet nodes indices)'''
     @tr.cached_property
     def _get_cells_in_out_xyfi(self):
+        mesh_elem_num = self.cell_mesh_surf_elem_num
         F_cfi = self.F_cfi
         n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices = self.cells_in_out_info
         cells_out_cfi = F_cfi[cells_out_indices]
-        cells_out_xyfi = cells_out_cfi.reshape((n_x_out, n_y_out, 6, 3))
+        cells_out_xyfi = cells_out_cfi.reshape((n_x_out, n_y_out, mesh_elem_num, 3))
         cells_in_cfi = F_cfi[cells_in_indices]
-        cells_in_xyfi = cells_in_cfi.reshape((n_x_in, n_y_in, 6, 3))
+        cells_in_xyfi = cells_in_cfi.reshape((n_x_in, n_y_in, mesh_elem_num, 3))
         return cells_in_xyfi, cells_out_xyfi
+
+    cell_mesh_surf_elem_num = tr.Property()
+    def _get_cell_mesh_surf_elem_num(self):
+        return self.wb_cell.I_Fi.shape[0]
 
     cells_in_out_xyj = tr.Property(depends_on='+GEO')
     ''' Convenience indexing for inner and outer cells in the tessellation where (x, y cell index along x and y; 
@@ -403,9 +414,13 @@ class WBTessellation4P(bu.Model):
         I_cj = np.unique(F_cfi.reshape((F_cfi.shape[0], -1)), axis=1)
         cells_out_cj = I_cj[cells_out_indices]
         cells_in_cj = I_cj[cells_in_indices]
-        cells_out_xyj = cells_out_cj.reshape((n_x_out, n_y_out, 7))
-        cells_in_xyj = cells_in_cj.reshape((n_x_in, n_y_in, 7))
+        cells_out_xyj = cells_out_cj.reshape((n_x_out, n_y_out, self.cell_node_num))
+        cells_in_xyj = cells_in_cj.reshape((n_x_in, n_y_in, self.cell_node_num))
         return cells_in_xyj, cells_out_xyj
+
+    cell_node_num = tr.Property()
+    def _get_cell_node_num(self):
+        return self.wb_cell.X_Ia.shape[0]
 
     cells_in_out_info = tr.Property(depends_on='+GEO')
     ''' n_x_in, n_x_out, n_y_in, n_y_out are number of inner and outer cells along x and y'''
@@ -429,7 +444,7 @@ class WBTessellation4P(bu.Model):
     def _get_F_cfi(self):
         # c cell index, f facet index, i indices of facet's nodes
         I_Fi = self.I_Fi_
-        return I_Fi.reshape((self.n_cells, 6, 3))
+        return I_Fi.reshape((self.n_cells, self.cell_mesh_surf_elem_num, 3))
 
     node_match_threshold = tr.Property(depends_on='+GEO')
 
