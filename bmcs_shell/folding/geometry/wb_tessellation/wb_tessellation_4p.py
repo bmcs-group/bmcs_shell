@@ -61,6 +61,14 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('show_folding_path_btn')
     def show_folding_path_btn_click(self, event=None):
+        # Plotting
+        k3d_name = 'folding_path'
+        if k3d_name in self.pb.objects:
+            self.pb.clear_object(k3d_name)
+
+        if not self.show_folding_path_btn:
+            return
+
         gamma_tmp = self.gamma
         n_gamma = 30
         X_gIa = np.zeros((n_gamma, *self.X_Ia_trimmed.shape))
@@ -68,11 +76,6 @@ class WBTessellation4P(bu.Model):
             self.gamma = gamma
             X_gIa[i, ...] = self.X_Ia_trimmed
         self.gamma = gamma_tmp
-
-        # Plotting
-        k3d_name = 'folding_path'
-        if k3d_name in self.pb.objects:
-            self.pb.clear_object(k3d_name)
 
         self.pb.objects[k3d_name] = []
 
@@ -666,7 +669,7 @@ class WBTessellation4P(bu.Model):
             fig.show()
             return fig, ax
 
-    def plot_formwork_points(self, ax=None, type='fixed'):
+    def plot_formwork_points(self, ax=None, type='fixed_base'):
         fig = None
         if ax is None:
             fig, ax = plt.subplots()
