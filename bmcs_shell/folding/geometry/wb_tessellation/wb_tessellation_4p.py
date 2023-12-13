@@ -525,10 +525,10 @@ class WBTessellation4P(bu.Model):
         X_Ma = self.X_Ia[J_M.flatten()]
 
         k3d_mesh = k3d.mesh(X_Ia,
-                                 I_Fi,
-                                 color=0x999999,
-                                 side='double',
-                            opacity=0.9
+                            I_Fi,
+                            color=0x999999,
+                            side='double',
+                            opacity=1
                             )
 
         pb.objects['k3d_mesh'] = k3d_mesh

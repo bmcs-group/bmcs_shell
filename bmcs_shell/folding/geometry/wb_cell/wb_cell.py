@@ -17,7 +17,7 @@ class WBCell(bu.Model):
     show_base_cell_ui = bu.Bool(True)
     show_node_labels = bu.Bool(False, GEO=True)
     show_wireframe = bu.Bool(True, GEO=True)
-    opacity = bu.Float(0.6, GEO=True)
+    opacity = bu.Float(1, GEO=True)
 
     callback_fun = None
 

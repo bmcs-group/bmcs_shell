@@ -101,7 +101,6 @@ class WBTessellationBase(bu.Model):
 
         return self.rotate_cell(translated_X_Ia, v1_ids, angle=np.pi)
 
-
     def rotate_cell(self, cell_X_Ia, v1_ids, angle=np.pi):
         # Rotating around vector #######
         # 1. Bringing back to origin (because rotating is around a vector originating from origin)
@@ -193,9 +192,9 @@ class WBTessellationBase(bu.Model):
             # self.k3d_labels[obj_name] = k3d_texts
 
         wb_mesh_wireframe = k3d.lines(X_Ia.astype(np.float32),
-                                     I_Fi.astype(np.uint32),
-                                      shader = 'mesh',
-                                     color=0x000000,
-                                     width=self.wireframe_width)
+                                      I_Fi.astype(np.uint32),
+                                      shader='mesh',
+                                      color=0x000000,
+                                      width=self.wireframe_width)
         plot += wb_mesh_wireframe
         self.k3d_wireframe[obj_name] = wb_mesh_wireframe
