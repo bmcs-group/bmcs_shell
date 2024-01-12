@@ -14,7 +14,7 @@ from bmcs_shell.folding.geometry.wb_cell.wb_cell_4p_ex import WBCell4ParamEx
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_xur import WBCell5ParamXur
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2gammas import WBCell5P2Gammas
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_phi import WBCell5ParamPhi
-from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2as import WBCell4Param2As
+#from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2as import WBCell4Param2As
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_xur import WBCell5ParamXurSymb
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_beta import WBCell5ParamBeta
 from bmcs_shell.folding.geometry.wb_cell.wb_cell_5p_2betas import WBCell5Param2Betas
