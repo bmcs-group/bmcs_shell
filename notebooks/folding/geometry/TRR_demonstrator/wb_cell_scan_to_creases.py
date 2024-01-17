@@ -1,8 +1,9 @@
 import numpy as np
 import scipy
+import scipy.optimize
 import k3d
 from traits.api import HasTraits, List, Array, \
-    Str, Property, cached_property
+    Str, Property, cached_property, Bool
 
 class WBCellScanToCreases(HasTraits):
     # Inputs
@@ -38,6 +39,7 @@ class WBCellScanToCreases(HasTraits):
                                       [12,18],[13,19],[14,16],[15,17],[15,18],[14,19]])
     
     # Interim results
+    flip_vertically = Bool(False)
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
     normals_Fa = Property(Array, depends_on='file_path')
@@ -141,9 +143,10 @@ class WBCellScanToCreases(HasTraits):
     @cached_property
     def _get_O_icrease_nodes_X_Na(self):
         O_a, O_basis_ab = self.O_basis_ab
-        return self.transform_to_local_coordinates(
+        O_icrease_nodes_X_Na = self.transform_to_local_coordinates(
             self.icrease_nodes_X_Na, O_a, O_basis_ab
         )
+        return O_icrease_nodes_X_Na
 
     @cached_property
     def _get_O_icrease_lines_X_Lia(self):
@@ -209,8 +212,12 @@ class WBCellScanToCreases(HasTraits):
         corner_node_X_Ca[:,0] = mountain_node_X_Ca[[0,1,1,0],0] 
 
         O_bcrease_nodes_X_Ca = np.vstack([valley_node_X_Ca, mountain_node_X_Ca, corner_node_X_Ca])
-        
-        return np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
+        O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
+        if self.flip_vertically:
+            print('flipping')
+            O_crease_nodes_C_Ca[:,2] *= -1
+
+        return O_crease_nodes_C_Ca
 
     @cached_property
     def _get_O_crease_lines_X_Lia(self):
@@ -253,7 +260,7 @@ class WBCellScanToCreases(HasTraits):
         # Sort facets and convert them to a list of lists
         facets_points = sorted(facets_points, key=lambda d: list(d.keys())[0])
         facets_points = [np.array(next(iter(dic.values())), dtype=np.float32) for dic in facets_points]
-        
+
         return facets_points
 
     @staticmethod
