@@ -8,7 +8,7 @@ from traits.api import HasTraits, List, Array, \
 class WBCellScanToCreases(HasTraits):
     # Inputs
     file_path = Str()
-    F_Cf = Array(dtype=np.int_,
+    F_Cf = Array(dtype=np.uint32,
                  value=[[0,1], [1,2], [2,3], [3,4], [4,5], 
                          [5,6], [6,7], [7,8], [8,9], [9,10], 
                          [10,11], [11,12], [12,13], [13,0],
@@ -19,25 +19,34 @@ class WBCellScanToCreases(HasTraits):
                     [4, 15, 8],
                     [14, 16, 2, 10],
                     [14, 15, 3, 9],[1,2],[3,4],[8,9],[10,11]])
-    icrease_lines_N_Li = Array(dtype=np.int_,
+    icrease_lines_N_Li = Array(dtype=np.uint32,
                               value=[[0,2],[1,3],[4,2],[5,3],[2,6],
                                      [4,6],[2,9],[4,9],[3,7],[5,7],
                                      [3,8],[5,8],[4,5],[7,6],[8,9],
                                      [4,0],[5,1]])
-    sym_Si = Array(dtype=np.int_, 
+    sym_Si = Array(dtype=np.uint32, 
                    value=[[2,3],[15,16],[5,9],[7,11],[4,8],[6,10]])
     
-    bot_contact_planes_F = Array(dtype=np.int_,
+    bot_contact_planes_F = Array(dtype=np.uint32,
                                  value=[0,  6,  7, 13])
     
-    top_contact_planes_Gi = Array(dtype=np.int_,
+    top_contact_planes_Gi = Array(dtype=np.uint32,
                                   value=[[14, 15],[17, 16],[18, 19],[21, 20]])
     
-    bcrease_lines_N_Li = Array(dtype=np.int_,
+    bcrease_lines_N_Li = Array(dtype=np.uint32,
                                value=[[0,14],[1,15],[0,10],[1,11],[1,12],[0,13],
                                       [6,10],[7,11],[8,12],[9,13],[10,16],[11,17],
                                       [12,18],[13,19],[14,16],[15,17],[15,18],[14,19]])
-    
+        
+    facets_N_F = Array(dtype=np.uint32,
+        value=[[0,14,16], [0, 16, 10], [0, 10, 6], [0, 6, 2],
+        [1, 3, 7], [1,7,11], [1, 11, 17],[1,17,15],
+        [1,15,18], [1,18,12], [1,12,8], [1,8,3],
+        [0,2,9],[0,9,13],[0,13,19],[0,19,14],
+        [2,6,4], [3,5,7],[3,8,5],[2,4,9],
+        [4,6,5],[5,6,7],[5,8,4],[4,8,9]
+    ])
+
     # Interim results
     flip_vertically = Bool(False)
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
@@ -162,9 +171,12 @@ class WBCellScanToCreases(HasTraits):
     @cached_property
     def _get_O_centroids_Fa(self):
         O_a, O_basis_ab = self.O_basis_ab
-        return self.transform_to_local_coordinates(
+        O_centroids_Fa = self.transform_to_local_coordinates(
             self.centroids_Fa, O_a, O_basis_ab
         )
+        if self.flip_vertically:
+            O_centroids_Fa[:,2] *= -1
+        return O_centroids_Fa
 
     @cached_property
     def _get_O_isc_points_Li(self):
@@ -214,7 +226,6 @@ class WBCellScanToCreases(HasTraits):
         O_bcrease_nodes_X_Ca = np.vstack([valley_node_X_Ca, mountain_node_X_Ca, corner_node_X_Ca])
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
         if self.flip_vertically:
-            print('flipping')
             O_crease_nodes_C_Ca[:,2] *= -1
 
         return O_crease_nodes_C_Ca
@@ -485,7 +496,11 @@ class WBCellScanToCreases(HasTraits):
                          color=color, plot_numbers=plane_numbers)
         self.plot_lines(plot, self.O_centroids_Fa, self.O_normals_Fa * normal_scale)
 
-
+    def plot_O_facets(self, plot, color=0x555555, opacity=1):
+        mesh = k3d.mesh(self.O_crease_nodes_X_Na, 
+                        self.facets_N_F, color=color,
+                opacity=opacity,side='double')
+        plot += mesh
 
     @staticmethod
     def plot_points(plot, points, point_size=1.0, color=0xff0000, plot_numbers=False):
