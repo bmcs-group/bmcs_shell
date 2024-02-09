@@ -49,6 +49,7 @@ class WBCellScanToCreases(HasTraits):
 
     # Interim results
     flip_vertically = Bool(False)
+    remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
     normals_Fa = Property(Array, depends_on='file_path')
@@ -76,7 +77,9 @@ class WBCellScanToCreases(HasTraits):
 
     @cached_property
     def _get_wb_scan_X_Fia(self):
-        return self.obj_file_points_to_numpy(self.file_path)
+        X_Fia = self.obj_file_points_to_numpy(self.file_path)        
+        X_Fia = [X_ia[:,self.remap_axes] for X_ia in X_Fia]
+        return X_Fia
 
     @cached_property
     def _get_planes_Fi(self):
