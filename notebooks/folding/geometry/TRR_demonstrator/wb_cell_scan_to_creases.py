@@ -5,6 +5,97 @@ import k3d
 from traits.api import HasTraits, List, Array, \
     Str, Property, cached_property, Bool, Float
 
+import os
+import pickle
+import sympy as sp
+
+def cache_solve(expr, symbols, name, recalculate=False, simplify=False):
+    filename = name + '.pkl'
+    if os.path.exists(filename) and not recalculate:
+        # Load the solution from the file
+        with open(filename, 'rb') as f:
+            solution = pickle.load(f)
+    else:
+        # Compute the solution
+        solution = sp.solve(expr, symbols)
+        
+        # Simplify the solution if requested
+        if simplify:
+            if isinstance(solution, list):
+                solution = [sp.simplify(sol) for sol in solution]
+            elif isinstance(solution, dict):
+                solution = {k: sp.simplify(v) for k, v in solution.items()}
+            else:
+                solution = sp.simplify(solution)
+        
+        # Save the solution to a file
+        with open(filename, 'wb') as f:
+            pickle.dump(solution, f)
+    
+    return solution
+
+# Define sp.symbols
+alpha_C, d_alpha_D = sp.symbols('alpha_C d_alpha_D')
+alpha_D = alpha_C + d_alpha_D
+
+X_C = sp.Matrix(sp.symbols('X_C1, X_C2'))
+X_D = sp.Matrix(sp.symbols('X_D1, X_D2'))
+x_Cb = sp.Matrix(sp.symbols('x_Cb1, x_Cb2'))
+x_Ct = sp.Matrix(sp.symbols('x_Ct1, x_Ct2'))
+x_Db = sp.Matrix(sp.symbols('x_Db1, x_Db2'))
+x_Dt = sp.Matrix(sp.symbols('x_Dt1, x_Dt2'))
+n_Cb = sp.Matrix(sp.symbols('n_Cb1, n_Cb2'))
+n_Ct = sp.Matrix(sp.symbols('n_Ct1, n_Ct2'))
+n_Db = sp.Matrix(sp.symbols('n_Db1, n_Db2'))
+n_Dt = sp.Matrix(sp.symbols('n_Dt1, n_Dt2'))
+
+sp_vars = (alpha_C, X_C, x_Cb, x_Ct, x_Db, x_Dt, n_Cb, n_Ct, n_Db, n_Dt)
+
+X_C1, X_C2 = X_C
+X_D1, X_D2 = X_D
+
+X_C0 = sp.symbols('X_C0')
+X_D0 = sp.symbols('X_D0')
+X3_C = sp.Matrix([X_C0, X_C1, X_C2])
+X3_D = sp.Matrix([X_D0, X_D1, X_D2])
+
+# Rotation matrices
+T_C = sp.Matrix([[sp.cos(alpha_C), -sp.sin(alpha_C)], [sp.sin(alpha_C), sp.cos(alpha_C)]]).T
+T_D = sp.Matrix([[sp.cos(alpha_D), -sp.sin(alpha_D)], [sp.sin(alpha_D), sp.cos(alpha_D)]]).T
+
+n_Cb_unit = n_Cb / n_Cb.norm()
+n_Dt_unit = n_Dt / n_Dt.norm()
+
+# Calculate dot product of n_Cb_global and n_Db_global
+dot_product = n_Cb_unit.dot(n_Dt_unit)
+
+# Check if dot product is equal to product of magnitudes
+d_alpha_D_solved = sp.simplify(sp.acos(dot_product))
+
+# Criterion 2: The point X_D1 must be on the line running through X_C2 orthogonal to n_Ct
+X_Ct = X_C + T_C * x_Ct
+X_Db = X_D + T_D * x_Db
+V_C2 = X_Ct - X_Db 
+N_C2 = T_C * n_Ct
+criterion2 = sp.Eq( sp.simplify(V_C2.dot(N_C2)), 0)
+
+# Criterion 3: The point X_Dt must be on the line given by the point X_Cb and 
+# a line perpendicular to N_Cb
+X_Cb = X_C + T_C * x_Cb
+X_Dt = X_D + T_D * x_Dt
+V_C1 = X_Dt - X_Cb
+N_C1 = T_C * n_Cb
+criterion3 = sp.Eq(sp.simplify(V_C1.dot(N_C1)), 0)
+
+# Solve the system of equations
+X_D_solved = cache_solve((criterion2, criterion3), [X_D1, X_D2], "X_D_solved") # , recalculate=True, simplify=True)
+X_D_solved
+
+get_d_alpha_D = sp.lambdify((alpha_C, X_C, n_Cb, n_Dt), d_alpha_D_solved)
+get_X_D1 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D1])
+get_X_D2 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D2])
+
+
 class WBCellScanToCreases(HasTraits):
     # Inputs
     file_path = Str()
@@ -311,6 +402,39 @@ class WBCellScanToCreases(HasTraits):
         return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
                                              centroids_X_Fia)
 
+
+    corner_map = Array(value=[[[15,3],[14,3]],[[16,10],[17,10]]], dtype=np.int_)
+    diag_corner_map = Array(value=[[(0, 0), (1, 1)], [(0, 1), (1, 0)]])
+    
+    def get_corner_f(self, diagonal, side):
+        return self.corner_map[tuple(self.diag_corner_map[diagonal][side])]
+
+    def plug_into(self, wb_fixed, diag, d_X_0=510, upwards=True):
+        """
+        Plug wb_D into wb_C along the diagonal diag.
+        """
+        if upwards:
+            side_fixed, side_plugged = 1, 0
+        else:
+            side_fixed, side_plugged = 0, 1
+        sign_side = (2 * side_fixed - 1)
+        
+        x_Cfa = wb_fixed.O_centroids_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
+        n_Cfa = wb_fixed.O_normals_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
+        x_Dfa = self.O_centroids_Fa[self.get_corner_f(diag,side_plugged),1:]
+        n_Dfa = self.O_normals_Fa[self.get_corner_f(diag,side_plugged),1:]
+
+        alpha_C_ = wb_fixed.alpha
+        X_C_ = wb_fixed.X_a[1:]
+
+        d_alpha_D_n_ = sign_side * get_d_alpha_D(alpha_C_, X_C_, n_Cfa[0], n_Dfa[1])
+        X_D1_ = get_X_D1(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
+        X_D2_ = get_X_D2(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
+
+        X_D0_ = wb_fixed.X_a[0] + ((diag * 2) - 1) * d_X_0 * (-1) * sign_side
+        self.alpha = alpha_C_ + d_alpha_D_n_
+        self.X_a = [X_D0_, X_D1_, X_D2_]
+
     @staticmethod
     def obj_file_points_to_numpy(file_path):
         """Read the contents of the .obj file and return a list of arrays in with the groups of points associated to individual facets of the waterbomb cell. The facets are enumerated counter-clockwise starting with the upper right facet. 
@@ -462,7 +586,7 @@ class WBCellScanToCreases(HasTraits):
 
     @staticmethod
     def transform_to_local_coordinates(icrease_nodes_X_Na, O_a, O_basis_ab):
-        """This function first subtracts the origin O_a from each point in icrease_nodes_X_Na, which shifts the points so that the origin goes to the origin of the local coordinate system. Then it uses np.einsum to transform the coordinates of the points to the local coordinate system. The 'ij,nj->ni' string tells np.einsum to treat O_basis_ab.T and shifted_points_X_Na as matrices and perform matrix multiplication on them.
+        """This function first subtracts the origin O_a from each point in icrease_nodes_X_Na, which shifts the points so that the origin goes to the origin of the local coordinate system. Then it uses np.einsum to transform the coordinates of the points to the local coordinate system. The 'ij,nj->ni' string tells np.einsum to treat O_basis_ab.T and shifted_points_X_Na as matrices and perform sp.Matrix multiplication on them.
         """
         # Shift the points so that the origin goes to the origin of the local coordinate system
         shifted_points_X_Na = icrease_nodes_X_Na - O_a[np.newaxis,:]
