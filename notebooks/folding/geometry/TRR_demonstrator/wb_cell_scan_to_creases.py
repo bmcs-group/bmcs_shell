@@ -3,11 +3,12 @@ import scipy
 import scipy.optimize
 import k3d
 from traits.api import HasTraits, List, Array, \
-    Str, Property, cached_property, Bool
+    Str, Property, cached_property, Bool, Float
 
 class WBCellScanToCreases(HasTraits):
     # Inputs
     file_path = Str()
+    label = Str('noname')
     F_Cf = Array(dtype=np.uint32,
                  value=[[0,1], [1,2], [2,3], [3,4], [4,5], 
                          [5,6], [6,7], [7,8], [8,9], [9,10], 
@@ -47,8 +48,12 @@ class WBCellScanToCreases(HasTraits):
         [4,6,5],[5,6,7],[5,8,4],[4,8,9]
     ])
 
+    X_a = Array(value=[0, 0, 0], dtype=np.float)
+    alpha = Float(0.0)
+
     # Interim results
     flip_vertically = Bool(False)
+    turn_around_z = Bool(False)
     remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
@@ -63,6 +68,8 @@ class WBCellScanToCreases(HasTraits):
     lengths_icrease_lines_L = Property(Array, depends_on='file_path')   
     sym_crease_length_diff_S = Property(Array, depends_on='file_path')
     sym_crease_angles_S = Property(Array, depends_on='file_path')
+
+    # Local coordinate system
     O_basis_ab = Property(Array, depends_on='file_path')
     O_icrease_nodes_X_Na = Property(Array, depends_on='file_path')
     O_icrease_lines_X_Lia = Property(Array, depends_on='file_path')
@@ -75,6 +82,12 @@ class WBCellScanToCreases(HasTraits):
     O_wb_scan_X_Fia = Property(Array, depends_on='file_path')
     O_thickness_Fi = Property(Array, depends_on='file_path')
 
+    # Global coordinate system
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
+    G_centroids_Fa = Property(Array, depends_on='file_path, X_a, alpha')
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
+    G_crease_lines_X_Lia = Property(Array, depends_on='file_path, X_a, alpha')
+    
     @cached_property
     def _get_wb_scan_X_Fia(self):
         X_Fia = self.obj_file_points_to_numpy(self.file_path)        
@@ -179,6 +192,12 @@ class WBCellScanToCreases(HasTraits):
         )
         if self.flip_vertically:
             O_centroids_Fa[:,2] *= -1
+        if self.turn_around_z:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_centroids_Fa = np.einsum('ab,...a->...b', T_ab, O_centroids_Fa)
         return O_centroids_Fa
 
     @cached_property
@@ -230,8 +249,48 @@ class WBCellScanToCreases(HasTraits):
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
         if self.flip_vertically:
             O_crease_nodes_C_Ca[:,2] *= -1
+        if self.turn_around_z:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_crease_nodes_C_Ca = np.einsum('ab,...a->...b', T_ab, O_crease_nodes_C_Ca)
 
         return O_crease_nodes_C_Ca
+
+    @cached_property
+    def _get_G_crease_nodes_X_Na(self):
+        """Global coordinates of the derived crease pattern nodes
+        """
+        return self.transform_O_to_G(self.O_crease_nodes_X_Na)
+    
+    @cached_property
+    def _get_G_crease_lines_X_Lia(self):
+        """Global coordinates of the derived crease pattern nodes
+        """
+        crease_lines_N_Li = np.vstack([self.icrease_lines_N_Li, self.bcrease_lines_N_Li])
+        return self.G_crease_nodes_X_Na[crease_lines_N_Li]
+    
+    @cached_property
+    def _get_G_centroids_Fa(self):
+        """Global coordinates of the centroids of the facets of the derived crease pattern
+        """
+        return self.transform_O_to_G(self.O_centroids_Fa)
+
+    def transform_O_to_G(self, O_points_X_Na):
+        """Transforms points from the local coordinate system O to the global coordinate system G.
+        """
+        # Rotate points around the x-axis by alpha
+        alpha = self.alpha
+        T_ab = np.array([
+            [1, 0, 0],
+            [0, np.cos(alpha), -np.sin(alpha)],
+            [0, np.sin(alpha), np.cos(alpha)]
+        ], dtype=np.float_)
+        G_points_X_Na = np.einsum(
+            'ab,...a->...b', T_ab, O_points_X_Na
+        )
+        return G_points_X_Na + self.X_a[np.newaxis,:]
 
     @cached_property
     def _get_O_crease_lines_X_Lia(self):
@@ -243,7 +302,7 @@ class WBCellScanToCreases(HasTraits):
         O_a, O_basis_ab = self.O_basis_ab
         return [self.transform_to_local_coordinates(wb_scan_X_ia, O_a, O_basis_ab) 
                 for wb_scan_X_ia in self.wb_scan_X_Fia]
-    
+        
     @cached_property
     def _get_O_thickness_Fi(self):
         centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
@@ -504,6 +563,20 @@ class WBCellScanToCreases(HasTraits):
                         self.facets_N_F, color=color,
                 opacity=opacity,side='double')
         plot += mesh
+
+    def plot_G_facets(self, plot, color=0x555555, opacity=1):
+        mesh = k3d.mesh(self.G_crease_nodes_X_Na, 
+                        self.facets_N_F, color=color,
+                opacity=opacity,side='double')
+        plot += mesh
+        label = k3d.text(
+            text=str(self.label), 
+            position=self.X_a, 
+            color=0x000000, 
+            size=0.8
+        )
+        plot += label
+
 
     @staticmethod
     def plot_points(plot, points, point_size=1.0, color=0xff0000, plot_numbers=False):
