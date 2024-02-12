@@ -3,7 +3,7 @@ import scipy
 import scipy.optimize
 import k3d
 from traits.api import HasTraits, List, Array, \
-    Str, Property, cached_property, Bool, Float
+    Str, Property, cached_property, Bool, Float, Int
 
 import os
 import pickle
@@ -144,7 +144,7 @@ class WBCellScanToCreases(HasTraits):
 
     # Interim results
     flip_vertically = Bool(False)
-    turn_around_z = Bool(False)
+
     remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
@@ -161,14 +161,20 @@ class WBCellScanToCreases(HasTraits):
     sym_crease_angles_S = Property(Array, depends_on='file_path')
 
     # Local coordinate system
+    O_flip = Int(1) # 1 stay, -1 flip
+    O_centroids_flip = Array(value=[7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 16, 17, 14, 15], 
+                            dtype=np.int_)
+    O_crease_nodes_flip = Array(value=[1, 0, 3, 2, 5, 4, 8, 9, 6, 7, 12, 13, 10, 11, 15, 14, 18, 19, 16, 17], 
+                                dtype=np.int_)
+
     O_basis_ab = Property(Array, depends_on='file_path')
     O_icrease_nodes_X_Na = Property(Array, depends_on='file_path')
     O_icrease_lines_X_Lia = Property(Array, depends_on='file_path')
-    O_normals_Fa = Property(Array, depends_on='file_path')
-    O_centroids_Fa = Property(Array, depends_on='file_path')
+    O_normals_Fa = Property(Array, depends_on='file_path, O_flip')
+    O_centroids_Fa = Property(Array, depends_on='file_path, O_flip')
     O_isc_points_Li = Property(Array, depends_on='file_path')
     O_isc_vectors_Li = Property(Array, depends_on='file_path')
-    O_crease_nodes_X_Na = Property(Array, depends_on='file_path')
+    O_crease_nodes_X_Na = Property(Array, depends_on='file_path, O_flip')
     O_crease_lines_X_Lia = Property(Array, depends_on='file_path')
     O_wb_scan_X_Fia = Property(Array, depends_on='file_path')
     O_thickness_Fi = Property(Array, depends_on='file_path')
@@ -271,9 +277,16 @@ class WBCellScanToCreases(HasTraits):
     @cached_property
     def _get_O_normals_Fa(self):
         _, O_basis_ab = self.O_basis_ab
-        return self.transform_to_local_coordinates(
+        O_normals_Fa = self.transform_to_local_coordinates(
             self.normals_Fa, np.array([0,0,0]), O_basis_ab
         )
+        if self.O_flip < 0:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_normals_Fa = np.einsum('ab,...a->...b', T_ab, O_normals_Fa)[self.O_centroids_flip]
+        return O_normals_Fa
 
     @cached_property
     def _get_O_centroids_Fa(self):
@@ -283,12 +296,12 @@ class WBCellScanToCreases(HasTraits):
         )
         if self.flip_vertically:
             O_centroids_Fa[:,2] *= -1
-        if self.turn_around_z:
+        if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
                 [-np.sin(np.pi), np.cos(np.pi), 0],
                 [0, 0, 1]], dtype=np.float_)
-            O_centroids_Fa = np.einsum('ab,...a->...b', T_ab, O_centroids_Fa)
+            O_centroids_Fa = np.einsum('ab,...a->...b', T_ab, O_centroids_Fa)[self.O_centroids_flip]
         return O_centroids_Fa
 
     @cached_property
@@ -300,7 +313,11 @@ class WBCellScanToCreases(HasTraits):
 
     @cached_property
     def _get_O_isc_vectors_Li(self):
-        """This code first calculates the vector from the origin to each line_point and then calculates the dot product between these vectors and their corresponding line_vectors using np.einsum. It then creates a mask of where the dot product is negative, indicating that the line_vector is pointing inwards. Finally, it reverses the direction of these line_vectors by multiplying them by -1.
+        """This code first calculates the vector from the origin to each line_point and then 
+        calculates the dot product between these vectors and their corresponding line_vectors 
+        using np.einsum. It then creates a mask of where the dot product is negative, 
+        indicating that the line_vector is pointing inwards. Finally, it reverses the direction of 
+        these line_vectors by multiplying them by -1.
         """
         _, O_basis_ab = self.O_basis_ab
 
@@ -340,12 +357,12 @@ class WBCellScanToCreases(HasTraits):
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
         if self.flip_vertically:
             O_crease_nodes_C_Ca[:,2] *= -1
-        if self.turn_around_z:
+        if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
                 [-np.sin(np.pi), np.cos(np.pi), 0],
                 [0, 0, 1]], dtype=np.float_)
-            O_crease_nodes_C_Ca = np.einsum('ab,...a->...b', T_ab, O_crease_nodes_C_Ca)
+            O_crease_nodes_C_Ca = np.einsum('ab,...a->...b', T_ab, O_crease_nodes_C_Ca)[self.O_crease_nodes_flip]
 
         return O_crease_nodes_C_Ca
 
@@ -650,10 +667,10 @@ class WBCellScanToCreases(HasTraits):
         start_O_basis_ab = O_a[np.newaxis,:] + O_basis_ab * 0
         self.plot_lines(plot, start_O_basis_ab, O_basis_ab * basis_scale)
 
-    def plot_O_icrease_nodes(self, plot, node_numbers=True, point_size=15,
+    def plot_O_crease_nodes(self, plot, node_numbers=True, point_size=15,
                              color=0x0000ff):
-        self.plot_points(plot, self.O_icrease_nodes_X_Na, point_size=point_size, 
-                            color=color, plot_numbers=True)
+        self.plot_points(plot, self.O_crease_nodes_X_Na, point_size=point_size, 
+                            color=color, plot_numbers=node_numbers)
 
     def plot_O_icrease_lines(self, plot, line_numbers=False, color=0x000000):
         icrease_lines_X_Lia = self.O_icrease_lines_X_Lia
@@ -693,9 +710,11 @@ class WBCellScanToCreases(HasTraits):
                         self.facets_N_F, color=color,
                 opacity=opacity,side='double')
         plot += mesh
+        X_a = np.copy(self.X_a)
+        X_a[1] += self.O_flip * 100
         label = k3d.text(
             text=str(self.label), 
-            position=self.X_a, 
+            position=X_a, 
             color=0x000000, 
             size=0.8
         )
