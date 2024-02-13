@@ -3,12 +3,104 @@ import scipy
 import scipy.optimize
 import k3d
 from traits.api import HasTraits, List, Array, \
-    Str, Property, cached_property, Bool
+    Str, Property, cached_property, Bool, Float, Int
+
+import os
+import pickle
+import sympy as sp
+
+def cache_solve(expr, symbols, name, recalculate=False, simplify=False):
+    filename = name + '.pkl'
+    if os.path.exists(filename) and not recalculate:
+        # Load the solution from the file
+        with open(filename, 'rb') as f:
+            solution = pickle.load(f)
+    else:
+        # Compute the solution
+        solution = sp.solve(expr, symbols)
+        
+        # Simplify the solution if requested
+        if simplify:
+            if isinstance(solution, list):
+                solution = [sp.simplify(sol) for sol in solution]
+            elif isinstance(solution, dict):
+                solution = {k: sp.simplify(v) for k, v in solution.items()}
+            else:
+                solution = sp.simplify(solution)
+        
+        # Save the solution to a file
+        with open(filename, 'wb') as f:
+            pickle.dump(solution, f)
+    
+    return solution
+
+# Define sp.symbols
+alpha_C, d_alpha_D = sp.symbols('alpha_C d_alpha_D')
+alpha_D = alpha_C + d_alpha_D
+
+X_C = sp.Matrix(sp.symbols('X_C1, X_C2'))
+X_D = sp.Matrix(sp.symbols('X_D1, X_D2'))
+x_Cb = sp.Matrix(sp.symbols('x_Cb1, x_Cb2'))
+x_Ct = sp.Matrix(sp.symbols('x_Ct1, x_Ct2'))
+x_Db = sp.Matrix(sp.symbols('x_Db1, x_Db2'))
+x_Dt = sp.Matrix(sp.symbols('x_Dt1, x_Dt2'))
+n_Cb = sp.Matrix(sp.symbols('n_Cb1, n_Cb2'))
+n_Ct = sp.Matrix(sp.symbols('n_Ct1, n_Ct2'))
+n_Db = sp.Matrix(sp.symbols('n_Db1, n_Db2'))
+n_Dt = sp.Matrix(sp.symbols('n_Dt1, n_Dt2'))
+
+sp_vars = (alpha_C, X_C, x_Cb, x_Ct, x_Db, x_Dt, n_Cb, n_Ct, n_Db, n_Dt)
+
+X_C1, X_C2 = X_C
+X_D1, X_D2 = X_D
+
+X_C0 = sp.symbols('X_C0')
+X_D0 = sp.symbols('X_D0')
+X3_C = sp.Matrix([X_C0, X_C1, X_C2])
+X3_D = sp.Matrix([X_D0, X_D1, X_D2])
+
+# Rotation matrices
+T_C = sp.Matrix([[sp.cos(alpha_C), -sp.sin(alpha_C)], [sp.sin(alpha_C), sp.cos(alpha_C)]]).T
+T_D = sp.Matrix([[sp.cos(alpha_D), -sp.sin(alpha_D)], [sp.sin(alpha_D), sp.cos(alpha_D)]]).T
+
+n_Cb_unit = n_Cb / n_Cb.norm()
+n_Dt_unit = n_Dt / n_Dt.norm()
+
+# Calculate dot product of n_Cb_global and n_Db_global
+dot_product = n_Cb_unit.dot(n_Dt_unit)
+
+# Check if dot product is equal to product of magnitudes
+d_alpha_D_solved = sp.simplify(sp.acos(dot_product))
+
+# Criterion 2: The point X_D1 must be on the line running through X_C2 orthogonal to n_Ct
+X_Ct = X_C + T_C * x_Ct
+X_Db = X_D + T_D * x_Db
+V_C2 = X_Ct - X_Db 
+N_C2 = T_C * n_Ct
+criterion2 = sp.Eq( sp.simplify(V_C2.dot(N_C2)), 0)
+
+# Criterion 3: The point X_Dt must be on the line given by the point X_Cb and 
+# a line perpendicular to N_Cb
+X_Cb = X_C + T_C * x_Cb
+X_Dt = X_D + T_D * x_Dt
+V_C1 = X_Dt - X_Cb
+N_C1 = T_C * n_Cb
+criterion3 = sp.Eq(sp.simplify(V_C1.dot(N_C1)), 0)
+
+# Solve the system of equations
+X_D_solved = cache_solve((criterion2, criterion3), [X_D1, X_D2], "X_D_solved") # , recalculate=True, simplify=True)
+X_D_solved
+
+get_d_alpha_D = sp.lambdify((alpha_C, X_C, n_Cb, n_Dt), d_alpha_D_solved)
+get_X_D1 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D1])
+get_X_D2 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D2])
+
 
 class WBCellScanToCreases(HasTraits):
     # Inputs
     file_path = Str()
-    F_Cf = Array(dtype=np.int_,
+    label = Str('noname')
+    F_Cf = Array(dtype=np.uint32,
                  value=[[0,1], [1,2], [2,3], [3,4], [4,5], 
                          [5,6], [6,7], [7,8], [8,9], [9,10], 
                          [10,11], [11,12], [12,13], [13,0],
@@ -19,27 +111,41 @@ class WBCellScanToCreases(HasTraits):
                     [4, 15, 8],
                     [14, 16, 2, 10],
                     [14, 15, 3, 9],[1,2],[3,4],[8,9],[10,11]])
-    icrease_lines_N_Li = Array(dtype=np.int_,
+    icrease_lines_N_Li = Array(dtype=np.uint32,
                               value=[[0,2],[1,3],[4,2],[5,3],[2,6],
                                      [4,6],[2,9],[4,9],[3,7],[5,7],
                                      [3,8],[5,8],[4,5],[7,6],[8,9],
                                      [4,0],[5,1]])
-    sym_Si = Array(dtype=np.int_, 
+    sym_Si = Array(dtype=np.uint32, 
                    value=[[2,3],[15,16],[5,9],[7,11],[4,8],[6,10]])
     
-    bot_contact_planes_F = Array(dtype=np.int_,
+    bot_contact_planes_F = Array(dtype=np.uint32,
                                  value=[0,  6,  7, 13])
     
-    top_contact_planes_Gi = Array(dtype=np.int_,
+    top_contact_planes_Gi = Array(dtype=np.uint32,
                                   value=[[14, 15],[17, 16],[18, 19],[21, 20]])
     
-    bcrease_lines_N_Li = Array(dtype=np.int_,
+    bcrease_lines_N_Li = Array(dtype=np.uint32,
                                value=[[0,14],[1,15],[0,10],[1,11],[1,12],[0,13],
                                       [6,10],[7,11],[8,12],[9,13],[10,16],[11,17],
                                       [12,18],[13,19],[14,16],[15,17],[15,18],[14,19]])
-    
+        
+    facets_N_F = Array(dtype=np.uint32,
+        value=[[0,14,16], [0, 16, 10], [0, 10, 6], [0, 6, 2],
+        [1, 3, 7], [1,7,11], [1, 11, 17],[1,17,15],
+        [1,15,18], [1,18,12], [1,12,8], [1,8,3],
+        [0,2,9],[0,9,13],[0,13,19],[0,19,14],
+        [2,6,4], [3,5,7],[3,8,5],[2,4,9],
+        [4,6,5],[5,6,7],[5,8,4],[4,8,9]
+    ])
+
+    X_a = Array(value=[0, 0, 0], dtype=np.float)
+    alpha = Float(0.0)
+
     # Interim results
     flip_vertically = Bool(False)
+
+    remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
     normals_Fa = Property(Array, depends_on='file_path')
@@ -53,21 +159,37 @@ class WBCellScanToCreases(HasTraits):
     lengths_icrease_lines_L = Property(Array, depends_on='file_path')   
     sym_crease_length_diff_S = Property(Array, depends_on='file_path')
     sym_crease_angles_S = Property(Array, depends_on='file_path')
+
+    # Local coordinate system
+    O_flip = Int(1) # 1 stay, -1 flip
+    O_centroids_flip = Array(value=[7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 16, 17, 14, 15], 
+                            dtype=np.int_)
+    O_crease_nodes_flip = Array(value=[1, 0, 3, 2, 5, 4, 8, 9, 6, 7, 12, 13, 10, 11, 15, 14, 18, 19, 16, 17], 
+                                dtype=np.int_)
+
     O_basis_ab = Property(Array, depends_on='file_path')
     O_icrease_nodes_X_Na = Property(Array, depends_on='file_path')
     O_icrease_lines_X_Lia = Property(Array, depends_on='file_path')
-    O_normals_Fa = Property(Array, depends_on='file_path')
-    O_centroids_Fa = Property(Array, depends_on='file_path')
+    O_normals_Fa = Property(Array, depends_on='file_path, O_flip')
+    O_centroids_Fa = Property(Array, depends_on='file_path, O_flip')
     O_isc_points_Li = Property(Array, depends_on='file_path')
     O_isc_vectors_Li = Property(Array, depends_on='file_path')
-    O_crease_nodes_X_Na = Property(Array, depends_on='file_path')
+    O_crease_nodes_X_Na = Property(Array, depends_on='file_path, O_flip')
     O_crease_lines_X_Lia = Property(Array, depends_on='file_path')
     O_wb_scan_X_Fia = Property(Array, depends_on='file_path')
     O_thickness_Fi = Property(Array, depends_on='file_path')
 
+    # Global coordinate system
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
+    G_centroids_Fa = Property(Array, depends_on='file_path, X_a, alpha')
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
+    G_crease_lines_X_Lia = Property(Array, depends_on='file_path, X_a, alpha')
+    
     @cached_property
     def _get_wb_scan_X_Fia(self):
-        return self.obj_file_points_to_numpy(self.file_path)
+        X_Fia = self.obj_file_points_to_numpy(self.file_path)        
+        X_Fia = [X_ia[:,self.remap_axes] for X_ia in X_Fia]
+        return X_Fia
 
     @cached_property
     def _get_planes_Fi(self):
@@ -155,16 +277,32 @@ class WBCellScanToCreases(HasTraits):
     @cached_property
     def _get_O_normals_Fa(self):
         _, O_basis_ab = self.O_basis_ab
-        return self.transform_to_local_coordinates(
+        O_normals_Fa = self.transform_to_local_coordinates(
             self.normals_Fa, np.array([0,0,0]), O_basis_ab
         )
+        if self.O_flip < 0:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_normals_Fa = np.einsum('ab,...a->...b', T_ab, O_normals_Fa)[self.O_centroids_flip]
+        return O_normals_Fa
 
     @cached_property
     def _get_O_centroids_Fa(self):
         O_a, O_basis_ab = self.O_basis_ab
-        return self.transform_to_local_coordinates(
+        O_centroids_Fa = self.transform_to_local_coordinates(
             self.centroids_Fa, O_a, O_basis_ab
         )
+        if self.flip_vertically:
+            O_centroids_Fa[:,2] *= -1
+        if self.O_flip < 0:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_centroids_Fa = np.einsum('ab,...a->...b', T_ab, O_centroids_Fa)[self.O_centroids_flip]
+        return O_centroids_Fa
 
     @cached_property
     def _get_O_isc_points_Li(self):
@@ -175,7 +313,11 @@ class WBCellScanToCreases(HasTraits):
 
     @cached_property
     def _get_O_isc_vectors_Li(self):
-        """This code first calculates the vector from the origin to each line_point and then calculates the dot product between these vectors and their corresponding line_vectors using np.einsum. It then creates a mask of where the dot product is negative, indicating that the line_vector is pointing inwards. Finally, it reverses the direction of these line_vectors by multiplying them by -1.
+        """This code first calculates the vector from the origin to each line_point and then 
+        calculates the dot product between these vectors and their corresponding line_vectors 
+        using np.einsum. It then creates a mask of where the dot product is negative, 
+        indicating that the line_vector is pointing inwards. Finally, it reverses the direction of 
+        these line_vectors by multiplying them by -1.
         """
         _, O_basis_ab = self.O_basis_ab
 
@@ -214,10 +356,49 @@ class WBCellScanToCreases(HasTraits):
         O_bcrease_nodes_X_Ca = np.vstack([valley_node_X_Ca, mountain_node_X_Ca, corner_node_X_Ca])
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
         if self.flip_vertically:
-            print('flipping')
             O_crease_nodes_C_Ca[:,2] *= -1
+        if self.O_flip < 0:
+            T_ab = np.array([
+                [np.cos(np.pi), np.sin(np.pi), 0 ],
+                [-np.sin(np.pi), np.cos(np.pi), 0],
+                [0, 0, 1]], dtype=np.float_)
+            O_crease_nodes_C_Ca = np.einsum('ab,...a->...b', T_ab, O_crease_nodes_C_Ca)[self.O_crease_nodes_flip]
 
         return O_crease_nodes_C_Ca
+
+    @cached_property
+    def _get_G_crease_nodes_X_Na(self):
+        """Global coordinates of the derived crease pattern nodes
+        """
+        return self.transform_O_to_G(self.O_crease_nodes_X_Na)
+    
+    @cached_property
+    def _get_G_crease_lines_X_Lia(self):
+        """Global coordinates of the derived crease pattern nodes
+        """
+        crease_lines_N_Li = np.vstack([self.icrease_lines_N_Li, self.bcrease_lines_N_Li])
+        return self.G_crease_nodes_X_Na[crease_lines_N_Li]
+    
+    @cached_property
+    def _get_G_centroids_Fa(self):
+        """Global coordinates of the centroids of the facets of the derived crease pattern
+        """
+        return self.transform_O_to_G(self.O_centroids_Fa)
+
+    def transform_O_to_G(self, O_points_X_Na):
+        """Transforms points from the local coordinate system O to the global coordinate system G.
+        """
+        # Rotate points around the x-axis by alpha
+        alpha = self.alpha
+        T_ab = np.array([
+            [1, 0, 0],
+            [0, np.cos(alpha), -np.sin(alpha)],
+            [0, np.sin(alpha), np.cos(alpha)]
+        ], dtype=np.float_)
+        G_points_X_Na = np.einsum(
+            'ab,...a->...b', T_ab, O_points_X_Na
+        )
+        return G_points_X_Na + self.X_a[np.newaxis,:]
 
     @cached_property
     def _get_O_crease_lines_X_Lia(self):
@@ -229,7 +410,7 @@ class WBCellScanToCreases(HasTraits):
         O_a, O_basis_ab = self.O_basis_ab
         return [self.transform_to_local_coordinates(wb_scan_X_ia, O_a, O_basis_ab) 
                 for wb_scan_X_ia in self.wb_scan_X_Fia]
-    
+        
     @cached_property
     def _get_O_thickness_Fi(self):
         centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
@@ -237,6 +418,39 @@ class WBCellScanToCreases(HasTraits):
         centroids_X_Fia = self.O_centroids_Fa[self.top_contact_planes_Gi]
         return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
                                              centroids_X_Fia)
+
+
+    corner_map = Array(value=[[[15,3],[14,3]],[[16,10],[17,10]]], dtype=np.int_)
+    diag_corner_map = Array(value=[[(0, 0), (1, 1)], [(0, 1), (1, 0)]])
+    
+    def get_corner_f(self, diagonal, side):
+        return self.corner_map[tuple(self.diag_corner_map[diagonal][side])]
+
+    def plug_into(self, wb_fixed, diag, d_X_0=510, upwards=True):
+        """
+        Plug wb_D into wb_C along the diagonal diag.
+        """
+        if upwards:
+            side_fixed, side_plugged = 1, 0
+        else:
+            side_fixed, side_plugged = 0, 1
+        sign_side = (2 * side_fixed - 1)
+        
+        x_Cfa = wb_fixed.O_centroids_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
+        n_Cfa = wb_fixed.O_normals_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
+        x_Dfa = self.O_centroids_Fa[self.get_corner_f(diag,side_plugged),1:]
+        n_Dfa = self.O_normals_Fa[self.get_corner_f(diag,side_plugged),1:]
+
+        alpha_C_ = wb_fixed.alpha
+        X_C_ = wb_fixed.X_a[1:]
+
+        d_alpha_D_n_ = sign_side * get_d_alpha_D(alpha_C_, X_C_, n_Cfa[0], n_Dfa[1])
+        X_D1_ = get_X_D1(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
+        X_D2_ = get_X_D2(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
+
+        X_D0_ = wb_fixed.X_a[0] + ((diag * 2) - 1) * d_X_0 * (-1) * sign_side
+        self.alpha = alpha_C_ + d_alpha_D_n_
+        self.X_a = [X_D0_, X_D1_, X_D2_]
 
     @staticmethod
     def obj_file_points_to_numpy(file_path):
@@ -389,7 +603,7 @@ class WBCellScanToCreases(HasTraits):
 
     @staticmethod
     def transform_to_local_coordinates(icrease_nodes_X_Na, O_a, O_basis_ab):
-        """This function first subtracts the origin O_a from each point in icrease_nodes_X_Na, which shifts the points so that the origin goes to the origin of the local coordinate system. Then it uses np.einsum to transform the coordinates of the points to the local coordinate system. The 'ij,nj->ni' string tells np.einsum to treat O_basis_ab.T and shifted_points_X_Na as matrices and perform matrix multiplication on them.
+        """This function first subtracts the origin O_a from each point in icrease_nodes_X_Na, which shifts the points so that the origin goes to the origin of the local coordinate system. Then it uses np.einsum to transform the coordinates of the points to the local coordinate system. The 'ij,nj->ni' string tells np.einsum to treat O_basis_ab.T and shifted_points_X_Na as matrices and perform sp.Matrix multiplication on them.
         """
         # Shift the points so that the origin goes to the origin of the local coordinate system
         shifted_points_X_Na = icrease_nodes_X_Na - O_a[np.newaxis,:]
@@ -453,10 +667,10 @@ class WBCellScanToCreases(HasTraits):
         start_O_basis_ab = O_a[np.newaxis,:] + O_basis_ab * 0
         self.plot_lines(plot, start_O_basis_ab, O_basis_ab * basis_scale)
 
-    def plot_O_icrease_nodes(self, plot, node_numbers=True, point_size=15,
+    def plot_O_crease_nodes(self, plot, node_numbers=True, point_size=15,
                              color=0x0000ff):
-        self.plot_points(plot, self.O_icrease_nodes_X_Na, point_size=point_size, 
-                            color=color, plot_numbers=True)
+        self.plot_points(plot, self.O_crease_nodes_X_Na, point_size=point_size, 
+                            color=color, plot_numbers=node_numbers)
 
     def plot_O_icrease_lines(self, plot, line_numbers=False, color=0x000000):
         icrease_lines_X_Lia = self.O_icrease_lines_X_Lia
@@ -485,6 +699,26 @@ class WBCellScanToCreases(HasTraits):
                          color=color, plot_numbers=plane_numbers)
         self.plot_lines(plot, self.O_centroids_Fa, self.O_normals_Fa * normal_scale)
 
+    def plot_O_facets(self, plot, color=0x555555, opacity=1):
+        mesh = k3d.mesh(self.O_crease_nodes_X_Na, 
+                        self.facets_N_F, color=color,
+                opacity=opacity,side='double')
+        plot += mesh
+
+    def plot_G_facets(self, plot, color=0x555555, opacity=1):
+        mesh = k3d.mesh(self.G_crease_nodes_X_Na, 
+                        self.facets_N_F, color=color,
+                opacity=opacity,side='double')
+        plot += mesh
+        X_a = np.copy(self.X_a)
+        X_a[1] += self.O_flip * 100
+        label = k3d.text(
+            text=str(self.label), 
+            position=X_a, 
+            color=0x000000, 
+            size=0.8
+        )
+        plot += label
 
 
     @staticmethod
