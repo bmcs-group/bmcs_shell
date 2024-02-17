@@ -77,7 +77,8 @@ X_Ct = X_C + T_C * x_Ct
 X_Db = X_D + T_D * x_Db
 V_C2 = X_Ct - X_Db 
 N_C2 = T_C * n_Ct
-criterion2 = sp.Eq( sp.simplify(V_C2.dot(N_C2)), 0)
+misfit_Ct = sp.simplify(V_C2.dot(N_C2))
+criterion2 = sp.Eq( misfit_Ct, 0)
 
 # Criterion 3: The point X_Dt must be on the line given by the point X_Cb and 
 # a line perpendicular to N_Cb
@@ -85,7 +86,8 @@ X_Cb = X_C + T_C * x_Cb
 X_Dt = X_D + T_D * x_Dt
 V_C1 = X_Dt - X_Cb
 N_C1 = T_C * n_Cb
-criterion3 = sp.Eq(sp.simplify(V_C1.dot(N_C1)), 0)
+misfit_Cb = sp.simplify(V_C1.dot(N_C1))
+criterion3 = sp.Eq( misfit_Cb, 0)
 
 # Solve the system of equations
 X_D_solved = cache_solve((criterion2, criterion3), [X_D1, X_D2], "X_D_solved") # , recalculate=True, simplify=True)
@@ -94,9 +96,11 @@ X_D_solved
 get_d_alpha_D = sp.lambdify((alpha_C, X_C, n_Cb, n_Dt), d_alpha_D_solved)
 get_X_D1 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D1])
 get_X_D2 = sp.lambdify(sp_vars + (d_alpha_D,), X_D_solved[X_D2])
+get_misfit_Ct = sp.lambdify(sp_vars + (d_alpha_D, X_D), misfit_Ct)
+get_misfit_Cb = sp.lambdify(sp_vars + (d_alpha_D, X_D), misfit_Cb)
 
 
-class WBCellScanToCreases(HasTraits):
+class WBScannedCell(HasTraits):
     # Inputs
     file_path = Str()
     label = Str('noname')
@@ -143,7 +147,8 @@ class WBCellScanToCreases(HasTraits):
     alpha = Float(0.0)
 
     # Interim results
-    flip_vertically = Bool(False)
+    #flip_vertically = Bool(False)
+    rotate_system = List([])
 
     remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
@@ -180,15 +185,17 @@ class WBCellScanToCreases(HasTraits):
     O_thickness_Fi = Property(Array, depends_on='file_path')
 
     # Global coordinate system
-    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
-    G_centroids_Fa = Property(Array, depends_on='file_path, X_a, alpha')
-    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, alpha')
-    G_crease_lines_X_Lia = Property(Array, depends_on='file_path, X_a, alpha')
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
+    G_centroids_Fa = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
+    G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
+    G_crease_lines_X_Lia = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
     
     @cached_property
     def _get_wb_scan_X_Fia(self):
         X_Fia = self.obj_file_points_to_numpy(self.file_path)        
-        X_Fia = [X_ia[:,self.remap_axes] for X_ia in X_Fia]
+        if len(self.rotate_system) > 0:
+            axes, angles = self.rotate_system
+            X_Fia = [self.rotate_3d(X_ia, axes, angles) for X_ia in X_Fia]
         return X_Fia
 
     @cached_property
@@ -280,6 +287,9 @@ class WBCellScanToCreases(HasTraits):
         O_normals_Fa = self.transform_to_local_coordinates(
             self.normals_Fa, np.array([0,0,0]), O_basis_ab
         )
+        # if len(self.rotate_system) > 0:
+        #     axes, angles = self.rotate_system
+        #     O_normals_Fa = self.rotate_3d(O_normals_Fa, axes, angles)
         if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
@@ -294,8 +304,11 @@ class WBCellScanToCreases(HasTraits):
         O_centroids_Fa = self.transform_to_local_coordinates(
             self.centroids_Fa, O_a, O_basis_ab
         )
-        if self.flip_vertically:
-            O_centroids_Fa[:,2] *= -1
+        # if self.flip_vertically:
+        #     O_centroids_Fa[:,2] *= -1
+        # if len(self.rotate_system) > 0:
+        #     axes, angles = self.rotate_system
+        #     O_centroids_Fa = self.rotate_3d(O_centroids_Fa, axes, angles)
         if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
@@ -337,6 +350,25 @@ class WBCellScanToCreases(HasTraits):
 
         return O_isc_vectors_La
     
+    @staticmethod
+    def rotate_3d(points, axes, angles):
+        def rotation_matrix(axis, angle):
+            a = np.cos(angle / 2)
+            b, c, d = -axis * np.sin(angle / 2)
+            return np.array([
+                [a*a+b*b-c*c-d*d, 2*(b*c-a*d), 2*(b*d+a*c)],
+                [2*(b*c+a*d), a*a+c*c-b*b-d*d, 2*(c*d-a*b)],
+                [2*(b*d-a*c), 2*(c*d+a*b), a*a+d*d-b*b-c*c]
+            ])
+
+        for ax, ang in zip(axes, angles):
+            axis_vector = np.zeros((3,), dtype=np.float_)
+            axis_vector[ax] = 1
+            R = rotation_matrix(axis_vector, ang)
+            points = np.einsum('ij,...j->...i', R, points)
+
+        return points
+
     @cached_property
     def _get_O_crease_nodes_X_Na(self):
                 
@@ -355,8 +387,6 @@ class WBCellScanToCreases(HasTraits):
 
         O_bcrease_nodes_X_Ca = np.vstack([valley_node_X_Ca, mountain_node_X_Ca, corner_node_X_Ca])
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
-        if self.flip_vertically:
-            O_crease_nodes_C_Ca[:,2] *= -1
         if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
@@ -420,38 +450,107 @@ class WBCellScanToCreases(HasTraits):
                                              centroids_X_Fia)
 
 
-    corner_map = Array(value=[[[15,3],[14,3]],[[16,10],[17,10]]], dtype=np.int_)
-    diag_corner_map = Array(value=[[(0, 0), (1, 1)], [(0, 1), (1, 0)]])
-    
-    def get_corner_f(self, diagonal, side):
-        return self.corner_map[tuple(self.diag_corner_map[diagonal][side])]
+    corner_map = Array(value=[[[17, 10],[15, 3], ], [[16, 10],[14, 3]]], dtype=np.int_)
+    diag_corner_map = Array(value=[[(0, 0), (0, 1)], [(1, 0), (1, 1)]], dtype=np.int_)
 
-    def plug_into(self, wb_fixed, diag, d_X_0=510, upwards=True):
+    def get_corner_f(self, diag_dir, y_dir):
+        """For the specified diagonal, return the index of the two facets relevant 
+        for compatibility of neighboring facets.
         """
-        Plug wb_D into wb_C along the diagonal diag.
+        diag_index = 0 if diag_dir == -1 else 1
+        y_index = 0 if y_dir == -1 else 1
+        return self.corner_map[tuple(self.diag_corner_map[diag_index][y_index])]
+    
+    @staticmethod
+    def get_x_dir(diag_dir, y_dir):
+        """Given a diagonal direction - either 1 or -1 for positive and 
+        negative diagonal meaning - bottom-lef -> top-right and bottom-right -> top-left 
+        direction, and the y-direction (top, down) for (positive, negative) return the 
+        x-direction (positive, negative) for (right, left). 
         """
-        if upwards:
-            side_fixed, side_plugged = 1, 0
-        else:
-            side_fixed, side_plugged = 0, 1
-        sign_side = (2 * side_fixed - 1)
-        
-        x_Cfa = wb_fixed.O_centroids_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
-        n_Cfa = wb_fixed.O_normals_Fa[wb_fixed.get_corner_f(diag,side_fixed),1:]
-        x_Dfa = self.O_centroids_Fa[self.get_corner_f(diag,side_plugged),1:]
-        n_Dfa = self.O_normals_Fa[self.get_corner_f(diag,side_plugged),1:]
+        return diag_dir * y_dir
+
+    def plug_into(self, wb_fixed, diag_dir, y_dir, d_X_0=565):
+        """Plug the cell into the specified fixed cell wb_fixed 
+        along the selected diagonal and y-direction
+        """
+        side_fixed, side_plugged = np.array([1, -1]) * y_dir
+        x_Cfa = wb_fixed.O_centroids_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        n_Cfa = wb_fixed.O_normals_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        x_Dfa = self.O_centroids_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
+        n_Dfa = self.O_normals_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
 
         alpha_C_ = wb_fixed.alpha
         X_C_ = wb_fixed.X_a[1:]
 
-        d_alpha_D_n_ = sign_side * get_d_alpha_D(alpha_C_, X_C_, n_Cfa[0], n_Dfa[1])
+        d_alpha_D_n_ = y_dir * get_d_alpha_D(alpha_C_, X_C_, n_Cfa[0], n_Dfa[1])
         X_D1_ = get_X_D1(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
         X_D2_ = get_X_D2(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_n_)
 
-        X_D0_ = wb_fixed.X_a[0] + ((diag * 2) - 1) * d_X_0 * (-1) * sign_side
+        X_D0_ = wb_fixed.X_a[0] + d_X_0 * self.get_x_dir(diag_dir, y_dir)
         self.alpha = alpha_C_ + d_alpha_D_n_
         self.X_a = [X_D0_, X_D1_, X_D2_]
 
+
+    def get_misfit(self, wb_C, diag_dir, y_dir=1):
+        """Quantify the misfit with respect to the specified cell that 
+        is placed according to the specified diagonal and y direction
+        """
+        side_fixed, side_plugged = np.array([1, -1]) * y_dir
+        x_Cfa = wb_C.O_centroids_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        n_Cfa = wb_C.O_normals_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        x_Dfa = self.O_centroids_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
+        n_Dfa = self.O_normals_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
+
+        alpha_C_ = wb_C.alpha
+        d_alpha_D_ = self.alpha - alpha_C_
+        X_C_ = wb_C.X_a[1:]
+        X_D_ = self.X_a[1:]
+
+        misfit_Cb = get_misfit_Cb(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], 
+                            n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_, X_D_)
+        misfit_Ct = get_misfit_Ct(alpha_C_, X_C_, x_Cfa[0], x_Cfa[1], x_Dfa[0], x_Dfa[1], n_Cfa[0], 
+                            n_Cfa[1], n_Dfa[0], n_Dfa[1], d_alpha_D_, X_D_)
+
+        return misfit_Cb, misfit_Ct
+
+    def plot_plugged_neighbors_yz(self, wb_plugged, diag_dir, y_dir, ax):
+        """Plot the transition between the current cell and the neighbor cell
+        specifying the normal vectors at the contact interfaces to verify 
+        their orientation. This method is used to check if the index maps 
+        specifying the upper and lower surface of the facets with the appropriate
+        thickness are addressing the correct parts of the cell based on the 
+        specified diag_dir and y_dir attributes. The method was primarily written 
+        for debugging.
+        """
+        side_fixed, side_plugged = np.array([1, -1]) * y_dir
+
+        x_Cfa = self.O_centroids_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        n_Cfa = self.O_normals_Fa[self.get_corner_f(diag_dir,side_fixed),1:]
+        x_Dfa = wb_plugged.O_centroids_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
+        n_Dfa = wb_plugged.O_normals_Fa[self.get_corner_f(diag_dir,side_plugged),1:]
+
+        scale = 50
+        x2_Cfa = x_Cfa + n_Cfa * scale
+        x2_Dfa = x_Dfa + n_Dfa * scale
+
+        nC_alf = np.einsum('lfa->alf', np.array([x_Cfa, x2_Cfa]))
+        nD_alf = np.einsum('lfa->alf', np.array([x_Dfa, x2_Dfa]))
+
+        ax.plot(*x_Cfa.T, 'o', color='blue')
+        ax.plot(*x_Dfa.T, 'o', color='green')
+
+        ax.plot(*nC_alf[:,:,0], color='orange')
+        ax.plot(*nD_alf[:,:,1], color='orange')
+
+        O_crease_lines_X_aLi = np.einsum('Lia->aiL', self.O_crease_lines_X_Lia)
+        ax.plot(*O_crease_lines_X_aLi[1:,...], color='blue')
+        O_crease_lines_X_aLi = np.einsum('Lia->aiL', wb_plugged.O_crease_lines_X_Lia)
+        ax.plot(*O_crease_lines_X_aLi[1:,...], color='green')
+
+        ax.set_aspect('equal')
+
+        
     @staticmethod
     def obj_file_points_to_numpy(file_path):
         """Read the contents of the .obj file and return a list of arrays in with the groups of points associated to individual facets of the waterbomb cell. The facets are enumerated counter-clockwise starting with the upper right facet. 
@@ -705,21 +804,28 @@ class WBCellScanToCreases(HasTraits):
                 opacity=opacity,side='double')
         plot += mesh
 
-    def plot_G_facets(self, plot, color=0x555555, opacity=1):
+    def plot_G_facets(self, plot, color=0x555555, opacity=1, module_numbers=True):
         mesh = k3d.mesh(self.G_crease_nodes_X_Na, 
                         self.facets_N_F, color=color,
                 opacity=opacity,side='double')
         plot += mesh
-        X_a = np.copy(self.X_a)
-        X_a[1] += self.O_flip * 100
-        label = k3d.text(
-            text=str(self.label), 
-            position=X_a, 
-            color=0x000000, 
-            size=0.8
-        )
-        plot += label
+        if module_numbers:
+            X_a = np.copy(self.X_a)
+            X_a[1] += self.O_flip * 100
+            label = k3d.text(
+                text=str(self.label), 
+                position=X_a, 
+                color=0x000000, 
+                size=0.8
+            )
+            plot += label
 
+    def plot_G_crease_lines(self, plot, line_numbers=False, color=0x000000):
+        crease_lines_X_Lia = self.G_crease_lines_X_Lia
+        start_crease_lines_La = crease_lines_X_Lia[:,0,:]
+        vectors_crease_lines_La =  crease_lines_X_Lia[:,1,:] - start_crease_lines_La 
+        self.plot_lines(plot, start_crease_lines_La, vectors_crease_lines_La,
+                        scale=1, color=color, plot_labels=line_numbers)
 
     @staticmethod
     def plot_points(plot, points, point_size=1.0, color=0xff0000, plot_numbers=False):
@@ -750,7 +856,7 @@ class WBCellScanToCreases(HasTraits):
         for i, X_ia in enumerate(X_Fia):
             # Cycle through the colors for each facet
             color = colors[i % len(colors)]
-            WBCellScanToCreases.plot_points(plot, X_ia, point_size=10, color=color)
+            WBScannedCell.plot_points(plot, X_ia, point_size=10, color=color)
 
     @staticmethod
     def plot_lines(plot, start_points, directions, scale=10.0, color=0xff0000, 
