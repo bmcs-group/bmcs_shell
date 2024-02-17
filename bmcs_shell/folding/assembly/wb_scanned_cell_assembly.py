@@ -1,14 +1,14 @@
 import traits.api as tr
-from wb_scaned_cell import WBScannedCell
 import numpy as np
 import itertools
 from matplotlib.patches import Arc
+from bmcs_shell.folding.assembly.wb_scaned_cell import WBScannedCell
 
-class WBCellAssembly(tr.HasTraits):
+class WBScannedCellAssembly(tr.HasTraits):
     """Assembly of the waterbomb cells
     """
 
-    modules = tr.Dict(tr.Str, WBScannedCell,value={})
+    modules = tr.Dict
 
     modules_list = tr.Property(depends_on='modules')
     @tr.cached_property

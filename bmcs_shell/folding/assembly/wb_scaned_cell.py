@@ -451,7 +451,7 @@ class WBScannedCell(HasTraits):
 
 
     corner_map = Array(value=[[[17, 10],[15, 3], ], [[16, 10],[14, 3]]], dtype=np.int_)
-    diag_corner_map = Array(value=[[(0, 0), (0, 1)], [(1, 0), (1, 1)]], dtype=np.int_))
+    diag_corner_map = Array(value=[[(0, 0), (0, 1)], [(1, 0), (1, 1)]], dtype=np.int_)
 
     def get_corner_f(self, diag_dir, y_dir):
         """For the specified diagonal, return the index of the two facets relevant 
