@@ -150,7 +150,6 @@ class WBScannedCell(HasTraits):
     #flip_vertically = Bool(False)
     rotate_system = List([])
 
-    remap_axes = List([0,1,2])
     wb_scan_X_Fia = Property(Array, depends_on='file_path')
     planes_Fi = Property(Array, depends_on='file_path')
     normals_Fa = Property(Array, depends_on='file_path')
@@ -287,9 +286,6 @@ class WBScannedCell(HasTraits):
         O_normals_Fa = self.transform_to_local_coordinates(
             self.normals_Fa, np.array([0,0,0]), O_basis_ab
         )
-        # if len(self.rotate_system) > 0:
-        #     axes, angles = self.rotate_system
-        #     O_normals_Fa = self.rotate_3d(O_normals_Fa, axes, angles)
         if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
@@ -304,11 +300,6 @@ class WBScannedCell(HasTraits):
         O_centroids_Fa = self.transform_to_local_coordinates(
             self.centroids_Fa, O_a, O_basis_ab
         )
-        # if self.flip_vertically:
-        #     O_centroids_Fa[:,2] *= -1
-        # if len(self.rotate_system) > 0:
-        #     axes, angles = self.rotate_system
-        #     O_centroids_Fa = self.rotate_3d(O_centroids_Fa, axes, angles)
         if self.O_flip < 0:
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],

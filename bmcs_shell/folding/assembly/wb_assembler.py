@@ -4,7 +4,7 @@ import itertools
 from matplotlib.patches import Arc
 from .wb_scanned_cell import WBScannedCell
 
-class WBScannedCellAssembly(tr.HasTraits):
+class WBAssembler(tr.HasTraits):
     """Assembly of the waterbomb cells
     """
 
@@ -22,6 +22,12 @@ class WBScannedCellAssembly(tr.HasTraits):
 
     wbs = tr.Property(depends_on='modules')
     """Array of waterbomb cells"""
+    @tr.cached_property
+    def _get_wbs(self):
+        return np.array([WBScannedCell(file_path=file, label=key,
+                                            rotate_system=rotate_system) 
+            for key, file, rotate_system, _ in self.modules_list ], 
+            dtype=np.object_)
 
     n_samples = tr.Int(5000)
     """Number fo samples used to find the best combination with a minimum misfit
@@ -53,12 +59,6 @@ class WBScannedCellAssembly(tr.HasTraits):
         [4, 11, -1, 1]
     ], dtype=np.int_)
 
-    def _get_wbs(self, modules):
-        return np.array([WBScannedCell(file_path=file, label=key,
-                                            rotate_system=rotate_system) 
-            for key, file, rotate_system, _ in self.modules_list ], 
-            dtype=np.object_)
-
     def get_slit_seq(self, slit_Si):
         """Distribute the above neighboring information given by 
         the four indexes (fixed, plugged, diagonal, y_dir) such that 
@@ -88,7 +88,7 @@ class WBScannedCellAssembly(tr.HasTraits):
             wb.alpha = 0
             wb.X_a = [0,0,0]
             wb.O_flip = 1
-        self.cell_enum = np.arange(13)
+        self.active_cell_enum = np.arange(13)
 
     def get_module_misfits(self):
         """Evaluate the misfit along the inter-module transitions 
@@ -110,20 +110,25 @@ class WBScannedCellAssembly(tr.HasTraits):
             wb.plot_points(plot, wb.G_centroids_Fa[[14,15,16,17]], point_size=8, plot_numbers=facet_numbers)
             wb.plot_G_facets(plot, color=color, module_numbers=module_numbers)
 
-    def plot_modules_yz(self, ax):
+    def plot_modules_yz(self, ax, cells=None):
+        if cells is None:
+            cells = self.wbs
         for i, wb in enumerate(self.wbs):
             G_crease_lines_X_aLi = np.einsum('Lia->aiL', wb.G_crease_lines_X_Lia)
             ax.plot(*G_crease_lines_X_aLi[1:,...], color='black')
         ax.set_aspect('equal')
 
-    def plot_modules_xz(self, ax):
-        for i, wb in enumerate(self, self.wbs):
+    def plot_modules_xz(self, ax, cells=None):
+        if cells is None:
+            cells = self.wbs
+        for i, wb in enumerate(cells):
             G_crease_lines_X_aLi = np.einsum('Lia->aiL', wb.G_crease_lines_X_Lia)
             ax.plot(*G_crease_lines_X_aLi[[0,2],...], color='black')
         ax.set_aspect('equal')
 
-    @staticmethod
-    def get_all_permutations():
+    all_perms = tr.Property(depends_on='modules')
+    @tr.cached_property
+    def _get_all_perms(self):
         """Combine 8 entities of type A and four entities of type B in all possible ordered sequences of 12 entities. While the type A entities go to the first 8 slots, the type B entities go to the last 4 slots. The entities are identified by integers starting from 1 ... 8 for type A and 9 ... 12 for type B. Further, the type A entities are assumed to have either positive or negative sign. However, their combinations are not assumed arbitrary. The signs in the slots [0, 1, 3, 4, 6, 7] are assumed always opposite to the slots [2, 5]. 
         """
         # Create arrays of entities
@@ -155,23 +160,25 @@ class WBScannedCellAssembly(tr.HasTraits):
         for wb, O_flip in zip(self.wbs, flip_map):
             wb.O_flip = O_flip
 
-    combination_choice = tr.Property(depends_on='modules, sample_size')
+    combination_choice = tr.Property(depends_on='modules, n_samples')
     @tr.cached_property
     def _get_combination_choice(self):
-        combination_choice = np.random.choice(
-            self.all_perms.shape[0], self.sample_size, replace=False)
+        return np.random.choice(
+            self.all_perms.shape[0], self.n_samples, replace=False)
 
-    misfit_of_all_combinations = tr.Property(depends_on='modules, sample_size')
+    active_cell_enum = tr.Array(value=np.arange(13, dtype=np.int_))
+
+    misfit_of_all_combinations = tr.Property(depends_on='modules, n_samples')
     @tr.cached_property
     def _get_misfit_of_all_combinations(self):
         """Out of all possible combinations, randomly select combinations 
         of the specified sample size and evaluate the misfits
         """
-        all_perms = self.get_all_permutations()
+        all_perms = self.all_perms
         misfit_tC_ = []
         for wb_perm in all_perms[self.combination_choice]:
             O_flip_map = np.sign(wb_perm)
-            self.cell_enum = np.abs(wb_perm) - 1
+            self.active_cell_enum = np.abs(wb_perm) - 1
             self.flip_modules(O_flip_map)
             self.plug_modules()
             misfit_C = self.get_module_misfits()
@@ -180,13 +187,13 @@ class WBScannedCellAssembly(tr.HasTraits):
         misfit_tC = np.array(misfit_tC_)
         return misfit_tC
 
-    best_combination_index = tr.Property(depends_on='modules, sample_size')
+    best_combination_index = tr.Property(depends_on='modules, n_samples')
     @tr.cached_property
     def _get_best_combination_index(self):
         misfit_tC = self.misfit_of_all_combinations
         return np.argmin(np.max(np.fabs(misfit_tC), axis=(1,2)))
 
-    misfit_of_best_combination = tr.Property(depends_on='modules, sample_size')
+    misfit_of_best_combination = tr.Property(depends_on='modules, n_samples')
     @tr.cached_property
     def _get_misfit_of_best_combination(self):
         return self.misfit_of_all_combinations[self.best_combination_index]
@@ -194,15 +201,15 @@ class WBScannedCellAssembly(tr.HasTraits):
     def activate_best_combination(self):
         self.reset_modules()
         best_combination_enum = self.all_perms[
-            self.combination_choice[self.best_combination_index]]
+            self.combination_choice[self.best_combination_index]]        
         O_flip_map = np.sign(best_combination_enum)
-        self.cell_enum = np.abs(self.combination_enum)
+        self.active_cell_enum = np.abs(best_combination_enum) - 1
         self.flip_modules(O_flip_map)
         self.plug_modules()
 
     def plot_best_combination_3D(self, plot):
         self.activate_best_combination()
-        self.plot_modules_3D(plot, module_numbers=False, facet_numbers=False)
+        self.plot_modules_3D(plot, module_numbers=True, facet_numbers=False)
         self.reset_modules()
 
     def plot_best_combination_yz(self, ax):
@@ -289,7 +296,8 @@ class WBScannedCellAssembly(tr.HasTraits):
         # switch off the axes
         ax.axis('off')
 
-    def get_gamma_support(self):
+    gamma_support = tr.Property
+    def _get_gamma_support(self):
         """Get the average dihedral angle between the supported middle facets    
         """
         self.activate_best_combination()
@@ -301,12 +309,12 @@ class WBScannedCellAssembly(tr.HasTraits):
         gamma = np.average(np.array(gammas_))
         return gamma
     
-    def get_bounding_box(self):
+    def get_bounding_box(self, select_cells=slice(None)):
         """Get the deepest node of the supplied cells
         """
         self.activate_best_combination()
         X_FNa_ = []
-        for wb in self.wbs:
+        for wb in self.wbs[select_cells]:
             X_Na = wb.G_crease_nodes_X_Na
             X_FNa_.append(X_Na)
         X_min = np.min(np.array(X_FNa_), axis=(0,1))
@@ -327,7 +335,7 @@ class WBScannedCellAssembly(tr.HasTraits):
 
         y_values = [wb.X_a[2] for wb in self.wbs]
 
-        gamma = self.get_gamma_support()
+        gamma = self.gamma_support
         for X_Ca, alpha_C in zip(wb_X_Ca, wb_alpha_C):
             self.plot_support_vshape(ax, X=X_Ca[0], D=D, H=X_Ca[1]+y_shift, W=300, G=0, alpha=alpha_C, gamma=gamma, c='lightgray', dist_dimline=-50)
 
@@ -340,14 +348,14 @@ class WBScannedCellAssembly(tr.HasTraits):
         if show_modules_yz:
             self.plot_modules_yz(ax)
 
-        X_min, X_max = self.get_bounding_box(self.wbs[[6,7]])
+        X_min, X_max = self.get_bounding_box(select_cells=[6,7])
         y_arg = X_min[2]
         x_max = X_max[1]
         ax.annotate("", xy=(x_max, 0), xytext=(x_max, y_arg), arrowprops=dict(arrowstyle='<->'))
         ax.text(x_max-50, (y_arg)/2, f"{y_arg:.0f}", ha='center', va='center', rotation=90)
         ax.plot([x_max-100, x_max+100], [y_arg, y_arg], linestyle='dashed', color='black')
 
-        X_min, X_max = self.get_bounding_box(self.wbs[[0,1]])
+        X_min, X_max = self.get_bounding_box(select_cells=[0,1])
         y_arg = X_min[2]
         x_min = X_min[1]
         ax.annotate("", xy=(x_min, 0), xytext=(x_min, y_arg), arrowprops=dict(arrowstyle='<->'))
@@ -364,11 +372,11 @@ class WBScannedCellAssembly(tr.HasTraits):
             wb.X_a = X_a
 
     def plot_transverse_supports(self, ax):
+        self.activate_best_combination()
+        wb_X_Ca, wb_alpha_C = self.get_support_geometry()
         D = self.D
         delta_x = 1200
         z_gap = 15
-        self.activate_best_combination()
-        wb_X_Ca, wb_alpha_C = self.get_support_geometry(self.wbs)
 
         min_y = np.min(wb_X_Ca[:,1])
         base_height = 78
@@ -382,8 +390,7 @@ class WBScannedCellAssembly(tr.HasTraits):
             X_a[2] += D + y_shift
             wb.X_a = X_a
 
-        wb_row_map = [[0, 1], [2, 8, 10], [3, 4], [5, 9, 11], [6, 7]]
-        for i, row in enumerate(wb_row_map):
+        for i, row in enumerate(self.module_x_rows):
             x_shift = i * delta_x
             cells = self.wbs[row]
 
@@ -393,10 +400,10 @@ class WBScannedCellAssembly(tr.HasTraits):
                 cell.X_a = X_a
                 X_Lia = cell.G_crease_lines_X_Lia[[17,18]]
                 z_mountain = np.average(X_Lia[...,2]) - z_gap
-            self.plot_modules_xz(cells, ax)
             ax.plot([x_shift-300, x_shift-300],[D,z_mountain])
             ax.annotate("", xy=(x_shift-550, D), xytext=(x_shift-550, z_mountain), arrowprops=dict(arrowstyle='<->'))
             ax.text(x_shift-550-50, D+z_mountain / 2, f"{z_mountain-D:.0f}", ha='center', va='center', rotation=90)
+        self.plot_modules_xz(ax)
 
         for wb, x_value in zip(self.wbs, x_values):
             X_a = np.copy(wb.X_a)
@@ -406,14 +413,14 @@ class WBScannedCellAssembly(tr.HasTraits):
         ax.annotate("", xy=(0, 0), xytext=(0, D), arrowprops=dict(arrowstyle='<->'))
         ax.text(50, D/2, f"{D:.0f}", ha='center', va='center', rotation=90)
 
-        X_min, X_max = self.get_bounding_box(self.wbs[[6,7]])
+        X_min, X_max = self.get_bounding_box([6,7])
         y_arg = X_min[2]
         x_max = (delta_x * 5 - 400)
         ax.annotate("", xy=(x_max, 0), xytext=(x_max, y_arg), arrowprops=dict(arrowstyle='<->'))
         ax.text(x_max-50, (y_arg)/2, f"{y_arg:.0f}", ha='center', va='center', rotation=90)
         ax.plot([x_max-100, x_max+100], [y_arg, y_arg], linestyle='dashed', color='black')
 
-        X_min, X_max = self.get_bounding_box(self.wbs[[0,1]])
+        X_min, X_max = self.get_bounding_box([0,1])
         y_arg = X_min[2]
         x_min = -1000
         ax.annotate("", xy=(x_min, 0), xytext=(x_min, y_arg), arrowprops=dict(arrowstyle='<->'))
