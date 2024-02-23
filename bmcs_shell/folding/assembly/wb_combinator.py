@@ -1,126 +1,13 @@
+
 import traits.api as tr
 import numpy as np
 import itertools
 from matplotlib.patches import Arc
 from .wb_scanned_cell import WBScannedCell
 
-class WBScannedCellAssembly(tr.HasTraits):
-    """Assembly of the waterbomb cells
+class WBCombinator(tr.HasTraits):
+    """Combine cells
     """
-
-    modules = tr.Dict
-
-    modules_list = tr.Property(depends_on='modules')
-    @tr.cached_property
-    def _get_modules_list(self):
-        return [(k, *v, c) for (k, v), c in 
-                zip(sorted(self.modules.items()), self.colors) ]     
-
-    colors = tr.List([0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
-          0xff0099, 0xff9900, 0x99ff00, 0x00ff99, 0x9900ff, 0x0099ff,
-          0xff9999, 0x99ff99, 0x9999ff, 0xffff99, 0xff99ff, 0x99ffff])   
-
-    wbs = tr.Property(depends_on='modules')
-    """Array of waterbomb cells"""
-
-    n_samples = tr.Int(5000)
-    """Number fo samples used to find the best combination with a minimum misfit
-    """
-
-    cell_enum = tr.Array(value=np.arange(1,13), dtype=np.int_)
-    """Current cell enumeration
-    """
-
-    plug_pi = tr.Array(value=[
-        [0, 8, 1, 1],
-        [0, 2, -1, 1],
-        [2, 1, 1, -1],
-        [2, 3, 1, 1],
-        [3, 9, 1, 1],
-        [3, 5, -1, 1],
-        [5, 4, 1, -1],
-        [4, 10, 1, -1],
-        [5, 6, 1, 1],
-        [5, 7, -1, 1],
-        [7, 11, 1, -1]
-    ], dtype=np.int_)
-
-    misfit_pi = tr.Array(value=[
-        [8, 3, -1, 1],
-        [1, 10, -1, 1],
-        [2, 4, -1, 1],
-        [9, 6, -1, 1],
-        [4, 11, -1, 1]
-    ], dtype=np.int_)
-
-    def _get_wbs(self, modules):
-        return np.array([WBScannedCell(file_path=file, label=key,
-                                            rotate_system=rotate_system) 
-            for key, file, rotate_system, _ in self.modules_list ], 
-            dtype=np.object_)
-
-    def get_slit_seq(self, slit_Si):
-        """Distribute the above neighboring information given by 
-        the four indexes (fixed, plugged, diagonal, y_dir) such that 
-        they can be used in loops over the plug scenario, or for the
-        calculation of the misfit"""
-        cell_pair_pC = self.cell_enum[slit_Si[:,:2]] - 1
-        from_slit_diag_p = slit_Si[:, 2]
-        from_slit_dir_p = slit_Si[:, 3]
-        return cell_pair_pC, from_slit_diag_p, from_slit_dir_p
-
-    def plug_modules(self):
-        """Based on the plug scenario prescribed by an array of the 
-        cell index couples, with the first one specifying the fixed and 
-        the second, the plugged cell and the third index specifying the 
-        diagonal and the fourth, the vertical direction of the slit, 
-        i.e. y-direction assemble the whole shell
-        """
-        for wb_link, diag, dir in zip(*self.get_slit_seq(self.plug_pi)):
-            wb_fixed, wb_plugged = self.wbs[wb_link]
-            wb_plugged.plug_into(wb_fixed, diag, dir)
-
-    def reset_modules(self):
-        """Reset the reference points of the cells and the rotation around 
-        the x-axis 
-        """
-        for wb in self.wbs:
-            wb.alpha = 0
-            wb.X_a = [0,0,0]
-            wb.O_flip = 1
-        self.cell_enum = np.arange(13)
-
-    def get_module_misfits(self):
-        """Evaluate the misfit along the inter-module transitions 
-        that were not explicitly plugged but their compatibility comes
-        as a result of imprecisions
-        """
-        misfits_ = []
-        for wb_link, diag, dir in zip(*self.get_slit_seq(self.misfit_pi)):
-            wb_fixed, wb_plugged = self.wbs[wb_link]
-            m1 = wb_plugged.get_misfit(wb_fixed, diag, dir)
-            misfits_.append(m1)
-
-        misfits = np.array(misfits_)
-        return misfits
-
-    def plot_modules_3D(self, plot, module_numbers=True, facet_numbers=False):
-        for i, wb in enumerate(self.wbs):
-            color = self.colors[i % len(self.colors)]
-            wb.plot_points(plot, wb.G_centroids_Fa[[14,15,16,17]], point_size=8, plot_numbers=facet_numbers)
-            wb.plot_G_facets(plot, color=color, module_numbers=module_numbers)
-
-    def plot_modules_yz(self, ax):
-        for i, wb in enumerate(self.wbs):
-            G_crease_lines_X_aLi = np.einsum('Lia->aiL', wb.G_crease_lines_X_Lia)
-            ax.plot(*G_crease_lines_X_aLi[1:,...], color='black')
-        ax.set_aspect('equal')
-
-    def plot_modules_xz(self, ax):
-        for i, wb in enumerate(self, self.wbs):
-            G_crease_lines_X_aLi = np.einsum('Lia->aiL', wb.G_crease_lines_X_Lia)
-            ax.plot(*G_crease_lines_X_aLi[[0,2],...], color='black')
-        ax.set_aspect('equal')
 
     @staticmethod
     def get_all_permutations():
