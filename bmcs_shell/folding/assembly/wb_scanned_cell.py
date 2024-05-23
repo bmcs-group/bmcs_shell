@@ -127,7 +127,7 @@ class WBScannedCell(HasTraits):
                                  value=[0,  6,  7, 13])
     
     top_contact_planes_Gi = Array(dtype=np.uint32,
-                                  value=[[14, 15],[17, 16],[18, 19],[21, 20]])
+                                  value=[[14, 15],[17, 16]])
     
     bcrease_lines_N_Li = Array(dtype=np.uint32,
                                value=[[0,14],[1,15],[0,10],[1,11],[1,12],[0,13],
@@ -181,7 +181,7 @@ class WBScannedCell(HasTraits):
     O_crease_nodes_X_Na = Property(Array, depends_on='file_path, O_flip')
     O_crease_lines_X_Lia = Property(Array, depends_on='file_path')
     O_wb_scan_X_Fia = Property(Array, depends_on='file_path')
-    O_thickness_Fi = Property(Array, depends_on='file_path')
+#    O_thickness_Fi = Property(Array, depends_on='file_path')
 
     # Global coordinate system
     G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
@@ -432,13 +432,13 @@ class WBScannedCell(HasTraits):
         return [self.transform_to_local_coordinates(wb_scan_X_ia, O_a, O_basis_ab) 
                 for wb_scan_X_ia in self.wb_scan_X_Fia]
         
-    @cached_property
-    def _get_O_thickness_Fi(self):
-        centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
-        vectors_X_Fa = self.O_normals_Fa[self.bot_contact_planes_F]
-        centroids_X_Fia = self.O_centroids_Fa[self.top_contact_planes_Gi]
-        return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
-                                             centroids_X_Fia)
+    # @cached_property
+    # def _get_O_thickness_Fi(self):
+    #     centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
+    #     vectors_X_Fa = self.O_normals_Fa[self.bot_contact_planes_F]
+    #     centroids_X_Fia = self.O_centroids_Fa[self.top_contact_planes_Gi]
+    #     return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
+    #                                          centroids_X_Fia)
 
 
     corner_map = Array(value=[[[17, 10],[15, 3], ], [[16, 10],[14, 3]]], dtype=np.int_)
