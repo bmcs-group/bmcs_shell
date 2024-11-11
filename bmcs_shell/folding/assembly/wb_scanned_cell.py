@@ -143,7 +143,7 @@ class WBScannedCell(HasTraits):
         [4,6,5],[5,6,7],[5,8,4],[4,8,9]
     ])
 
-    X_a = Array(value=[0, 0, 0], dtype=np.float)
+    X_a = Array(value=[0, 0, 0], dtype=float)
     alpha = Float(0.0)
 
     # Interim results
