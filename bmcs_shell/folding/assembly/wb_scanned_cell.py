@@ -104,17 +104,20 @@ class WBScannedCell(HasTraits):
     # Inputs
     file_path = Str()
     label = Str('noname')
+    # This follows the numbering of the facets in the .obj file
     F_Cf = Array(dtype=np.uint32,
                  value=[[0,1], [1,2], [2,3], [3,4], [4,5], 
                          [5,6], [6,7], [7,8], [8,9], [9,10], 
                          [10,11], [11,12], [12,13], [13,0],
                          [3,10],[4,9],[2,11]])
+    #
     isc_N_L = List([[0, 13, 12],
                     [5, 6, 7],
                     [1, 16, 11],
                     [4, 15, 8],
                     [14, 16, 2, 10],
                     [14, 15, 3, 9],[1,2],[3,4],[8,9],[10,11]])
+    # 
     icrease_lines_N_Li = Array(dtype=np.uint32,
                               value=[[0,2],[1,3],[4,2],[5,3],[2,6],
                                      [4,6],[2,9],[4,9],[3,7],[5,7],
@@ -189,6 +192,7 @@ class WBScannedCell(HasTraits):
     G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
     G_crease_lines_X_Lia = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
     
+    # Call the obj_file_points_to_numpy method to read the .obj file and return the points
     @cached_property
     def _get_wb_scan_X_Fia(self):
         X_Fia = self.obj_file_points_to_numpy(self.file_path)        
@@ -847,7 +851,7 @@ class WBScannedCell(HasTraits):
         for i, X_ia in enumerate(X_Fia):
             # Cycle through the colors for each facet
             color = colors[i % len(colors)]
-            WBScannedCell.plot_points(plot, X_ia, point_size=10, color=color)
+            WBScannedCell.plot_points(plot, X_ia, point_size=200, color=color)
 
     @staticmethod
     def plot_lines(plot, start_points, directions, scale=10.0, color=0xff0000, 
