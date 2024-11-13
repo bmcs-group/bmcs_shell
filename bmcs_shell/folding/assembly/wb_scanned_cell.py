@@ -104,12 +104,18 @@ class WBScannedCell(HasTraits):
     # Inputs
     file_path = Str()
     label = Str('noname')
-    # This follows the numbering of the facets in the .obj file
+    '''
+    This follows the numbering of the facets in the .obj file
+    This is the list of the indices of the facets that are neighboured.
+    Remember that the facets are enumerated counter-clockwise starting with the upper right facet.
+    The index 0 in Python means index 1 on the image from 01_wb_cell_scan_analyzer.ipynb
+    '''
     F_Cf = Array(dtype=np.uint32,
                  value=[[0,1], [1,2], [2,3], [3,4], [4,5], 
                          [5,6], [6,7], [7,8], [8,9], [9,10], 
                          [10,11], [11,12], [12,13], [13,0],
                          [3,10],[4,9],[2,11]])
+    
     #
     isc_N_L = List([[0, 13, 12],
                     [5, 6, 7],
@@ -117,12 +123,14 @@ class WBScannedCell(HasTraits):
                     [4, 15, 8],
                     [14, 16, 2, 10],
                     [14, 15, 3, 9],[1,2],[3,4],[8,9],[10,11]])
-    # 
+    
+    # The numbers inside the list are the index of the points that form the crease lines
     icrease_lines_N_Li = Array(dtype=np.uint32,
                               value=[[0,2],[1,3],[4,2],[5,3],[2,6],
                                      [4,6],[2,9],[4,9],[3,7],[5,7],
                                      [3,8],[5,8],[4,5],[7,6],[8,9],
                                      [4,0],[5,1]])
+    
     sym_Si = Array(dtype=np.uint32, 
                    value=[[2,3],[15,16],[5,9],[7,11],[4,8],[6,10]])
     
@@ -201,6 +209,7 @@ class WBScannedCell(HasTraits):
             X_Fia = [self.rotate_3d(X_ia, axes, angles) for X_ia in X_Fia]
         return X_Fia
 
+    # Return an array with the coefficients a,b,c,d of the best fit planes for each facet of the waterbomb cell
     @cached_property
     def _get_planes_Fi(self):
         return np.array([self.best_fit_plane(X_ia) for X_ia in self.wb_scan_X_Fia],
@@ -210,6 +219,7 @@ class WBScannedCell(HasTraits):
     def _get_normals_Fa(self):
         return self.planes_Fi[:,:-1]
 
+    # Return an array with the coordinates of the centroids of the planes of the waterbomb cell
     @cached_property
     def _get_centroids_Fa(self):
         return np.array([np.mean(X_Ia, axis=0) for X_Ia in self.wb_scan_X_Fia],
@@ -643,6 +653,16 @@ class WBScannedCell(HasTraits):
     @staticmethod
     def centroid_of_intersection_points(isc_points_L_Xa, isc_vec_L_Xa, isc_N_L):
         """First calculate the intersection points of each pair of lines using the line_intersection function, then calculate the centroid of these intersection points. The centroids for each group of lines are returned as a list.
+        
+        Args:
+            isc_points_L_Xa (type): x, y, z-coordinates of the intersection points.
+            isc_vec_L_Xa (type): direction vector of the intersection points. 
+            isc_N_L (list): index of points that form a crease line. (It is a numenclature, for details refer to the notebooks on the "intersection nodes" snippet)
+        Returns:
+
+        return_type: Description of the returned value.
+        
+
         """
         def closest_point_on_lines(line1, line2):
             p1, v1 = np.array(line1[0]), np.array(line1[1])
@@ -729,7 +749,7 @@ class WBScannedCell(HasTraits):
 
         return distances_Fi
 
-    def plot_planes(self, plot, point_size=30, color=0x000000, 
+    def plot_planes(self, plot, point_size=15, color=0x000000, 
                     normal_scale=10, plane_numbers=True):
         self.plot_points(plot, self.centroids_Fa, point_size=point_size, 
                          color=color, plot_numbers=plane_numbers)
@@ -739,6 +759,7 @@ class WBScannedCell(HasTraits):
                                 plot_labels=True, point_sise=30):
         isc_start_points_c_Li = (self.isc_points_Li - self.isc_vectors_Li * isc_vec_scale)
         isc_vectors_c_Li = self.isc_vectors_Li * 2 * isc_vec_scale
+
         self.plot_lines(plot, isc_start_points_c_Li, isc_vectors_c_Li, scale=1, 
                 color=color, plot_labels=plot_labels)
         self.plot_points(plot, isc_start_points_c_Li + isc_vectors_c_Li, color=color,
@@ -851,7 +872,7 @@ class WBScannedCell(HasTraits):
         for i, X_ia in enumerate(X_Fia):
             # Cycle through the colors for each facet
             color = colors[i % len(colors)]
-            WBScannedCell.plot_points(plot, X_ia, point_size=200, color=color)
+            WBScannedCell.plot_points(plot, X_ia, point_size=15, color=color)
 
     @staticmethod
     def plot_lines(plot, start_points, directions, scale=10.0, color=0xff0000, 
