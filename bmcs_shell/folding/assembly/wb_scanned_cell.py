@@ -659,7 +659,7 @@ class WBScannedCell(HasTraits):
             isc_vec_L_Xa (type): direction vector of the intersection points. 
             isc_N_L (list): index of points that form a crease line. (It is a numenclature, for details refer to the notebooks on the "intersection nodes" snippet)
         Returns:
-
+            icrease_nodes_X_Na: Coordinates of the centroid of intersection points.
         return_type: Description of the returned value.
         
 
