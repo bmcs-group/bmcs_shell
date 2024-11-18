@@ -116,7 +116,7 @@ class WBScannedCell(HasTraits):
                          [10,11], [11,12], [12,13], [13,0],
                          [3,10],[4,9],[2,11]])
     
-    #
+    # Node index from the intersecting crease lines
     isc_N_L = List([[0, 13, 12],
                     [5, 6, 7],
                     [1, 16, 11],
@@ -192,7 +192,7 @@ class WBScannedCell(HasTraits):
     O_crease_nodes_X_Na = Property(Array, depends_on='file_path, O_flip')
     O_crease_lines_X_Lia = Property(Array, depends_on='file_path')
     O_wb_scan_X_Fia = Property(Array, depends_on='file_path')
-#    O_thickness_Fi = Property(Array, depends_on='file_path')
+    O_thickness_Fi = Property(Array, depends_on='file_path')
 
     # Global coordinate system
     G_crease_nodes_X_Na = Property(Array, depends_on='file_path, X_a, X_a_items, alpha')
@@ -271,17 +271,33 @@ class WBScannedCell(HasTraits):
         """
         Or, Ol = 4, 5 # left and right crease node on the center line 
         Fu, Fl = 3, 10 # upper and lower facets rotating around Or-Ol line
+        
+        # Mid point between the two crease nodes
         O_a = (self.icrease_nodes_X_Na[Or] + 
                    self.icrease_nodes_X_Na[Ol]) / 2
+        
+        # Vector connecting the two crease nodes -> Defines the vector 
         vec_Ox_a = self.icrease_nodes_X_Na[Or] - self.icrease_nodes_X_Na[Ol]
+        
+        # Normalized vector connecting the two crease nodes
         nvec_Ox_a = vec_Ox_a / np.linalg.norm(vec_Ox_a)
+        
+        # Averaged normal vector to the lower and upper facets
         _vec_Oz_a = (self.normals_Fa[Fu] + self.normals_Fa[Fl]) / 2
+        
+        # Normalized Averaged normal vector to the lower and upper facets
         _nvec_Oz_a = _vec_Oz_a / np.linalg.norm(_vec_Oz_a)
+        
+        # Calculate the basis vector e_y = e_z x e_x perpendicular to the plane defined by e_x and e_z
         nvec_Oy_a = np.cross(_nvec_Oz_a, nvec_Ox_a)
+        
+        # Recalculate the basis vector e_z = e_x x e_y to assure orthogonality
         nvec_Oz_a = np.cross(nvec_Ox_a, nvec_Oy_a)
+        
         O_basis_ab = np.array([nvec_Ox_a, nvec_Oy_a, nvec_Oz_a], dtype=np.float32)
         return O_a, O_basis_ab
 
+    # Transform crease nodes from the global to the local coordinate system using the basis O_basis_ab
     @cached_property
     def _get_O_icrease_nodes_X_Na(self):
         O_a, O_basis_ab = self.O_basis_ab
@@ -374,23 +390,46 @@ class WBScannedCell(HasTraits):
 
         return points
 
+    # Define the crease nodes in the local coordinate system
     @cached_property
     def _get_O_crease_nodes_X_Na(self):
-                
+        
+        # Calculate average length of the creases in the valley with indices 5, 9, 11, 7     
+        # These are the valley creases that form the base cell   
         length_valley = np.average(self.lengths_icrease_lines_L[[5,9,11,7]])
+        
+        # Coordinates of the intersecting points of the valley creases in the local coordinate system
         valley_Ca = self.O_icrease_nodes_X_Na[[2,3,3,2]]
+        
+        # Vector of the intersecting points of the valley creases in the local coordinate system
         vec_valley_Ca = self.O_isc_vectors_Li[[0,5,7,12]]
+        
+        # Calculate the coordinates of the valley crease nodes
         valley_node_X_Ca = valley_Ca + vec_valley_Ca * length_valley
 
+        # Calculate average length of the creases in the mountain with indices 13, 14
+        # These are the mountain creases that form the base cell
         length_mountain = np.average(self.lengths_icrease_lines_L[[13,14]])
+        
+        # Coordinates of the intersecting points of the mountain creases in the local coordinate system
         mountain_Ca = self.O_icrease_nodes_X_Na[[0,1]]
+        
+        # Vector of the intersecting points of the mountain creases in the local coordinate system
         vec_mountain_Ca = self.O_isc_vectors_Li[[13,6]]
+        
+        # Calculate the coordinates of the mountain crease nodes
         mountain_node_X_Ca = mountain_Ca + vec_mountain_Ca * length_mountain / 2
 
+        # The valley nodes are the four nodes of the corner nodes of the base cell
         corner_node_X_Ca = np.copy(valley_node_X_Ca)
+        
+        # The first and the last node of the corner crease nodes are the same
         corner_node_X_Ca[:,0] = mountain_node_X_Ca[[0,1,1,0],0] 
 
+        # Stack the valley, mountain and corner nodes to get the crease nodes of the base cell
         O_bcrease_nodes_X_Ca = np.vstack([valley_node_X_Ca, mountain_node_X_Ca, corner_node_X_Ca])
+        
+        # Flip the crease nodes if the flip attribute is set to -1
         O_crease_nodes_C_Ca = np.vstack([self.O_icrease_nodes_X_Na, O_bcrease_nodes_X_Ca])
         if self.O_flip < 0:
             T_ab = np.array([
@@ -446,13 +485,13 @@ class WBScannedCell(HasTraits):
         return [self.transform_to_local_coordinates(wb_scan_X_ia, O_a, O_basis_ab) 
                 for wb_scan_X_ia in self.wb_scan_X_Fia]
         
-    # @cached_property
-    # def _get_O_thickness_Fi(self):
-    #     centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
-    #     vectors_X_Fa = self.O_normals_Fa[self.bot_contact_planes_F]
-    #     centroids_X_Fia = self.O_centroids_Fa[self.top_contact_planes_Gi]
-    #     return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
-    #                                          centroids_X_Fia)
+    @cached_property
+    def _get_O_thickness_Fi(self):
+        centroids_X_Fa = self.O_centroids_Fa[self.bot_contact_planes_F]
+        vectors_X_Fa = self.O_normals_Fa[self.bot_contact_planes_F]
+        centroids_X_Fia = self.O_centroids_Fa[self.top_contact_planes_Gi]
+        return self.project_points_on_planes(centroids_X_Fa, vectors_X_Fa, 
+                                             centroids_X_Fia)
 
 
     corner_map = Array(value=[[[17, 10],[15, 3], ], [[16, 10],[14, 3]]], dtype=np.int_)
@@ -655,13 +694,16 @@ class WBScannedCell(HasTraits):
         """First calculate the intersection points of each pair of lines using the line_intersection function, then calculate the centroid of these intersection points. The centroids for each group of lines are returned as a list.
         
         Args:
-            isc_points_L_Xa (type): x, y, z-coordinates of the intersection points.
-            isc_vec_L_Xa (type): direction vector of the intersection points. 
+            isc_points_L_Xa (array): x, y, z-coordinates of the intersection points.
+            isc_vec_L_Xa (array): direction vector of the intersection points. 
             isc_N_L (list): index of points that form a crease line. (It is a numenclature, for details refer to the notebooks on the "intersection nodes" snippet)
         Returns:
-            icrease_nodes_X_Na: Coordinates of the centroid of intersection points.
-        return_type: Description of the returned value.
+            icrease_nodes_X_Na (array): Coordinates of the centroid of intersection points.
         
+        To define the intersection point between the crease lines, the least 
+        squared method is used to find the points on neighboring creases that minimizes the distance between them.
+        This is done for each pair of creases that should intersect and their intersection point is defined as the 
+        centroid of the average of the points that minimize the distance between them.
 
         """
         def closest_point_on_lines(line1, line2):
