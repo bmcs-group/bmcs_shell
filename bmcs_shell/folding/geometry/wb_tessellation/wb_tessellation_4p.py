@@ -19,6 +19,7 @@ class WBTessellation4P(bu.Model):
     wb_cell = bu.Instance(WBCell4Param)
 
     def _wb_cell_default(self):
+        #print('_wb_cell_default')   
         wb_cell = WBCell4Param()
         self.update_wb_cell_params(wb_cell)
         return wb_cell
@@ -61,6 +62,7 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('show_folding_path_btn')
     def show_folding_path_btn_click(self, event=None):
+        ##print('show_folding_path_btn_click - WB Tessellation 4P')
         # Plotting
         k3d_name = 'folding_path'
         if k3d_name in self.pb.objects:
@@ -96,9 +98,11 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('+GEO', post_init=True)
     def update_wb_cell(self, event):
+        ##print('update_wb_cell - WB Tessellation 4P')
         self.update_wb_cell_params(self.wb_cell)
 
     def update_wb_cell_params(self, wb_cell):
+        ##print('update_wb_cell_params - WB Tessellation 4P')
         wb_cell.trait_set(
             gamma=self.gamma,
             a=self.a,
@@ -134,9 +138,11 @@ class WBTessellation4P(bu.Model):
     )
 
     def get_phi_range(self, delta_phi):
+        ##print('get_phi_range - WB Tessellation 4P')
         return np.arange(-(self.n_phi_plus - 1), self.n_phi_plus) * delta_phi
 
     def get_X_phi_range(self,delta_phi, R_0):
+        ##print('get_X_phi_range - WB Tessellation 4P')
         """Given an array of angles and radius return an array of coordinates
         """
         phi_range = self.get_phi_range((delta_phi))
@@ -144,10 +150,12 @@ class WBTessellation4P(bu.Model):
                          np.fabs(R_0) * np.cos(phi_range) + R_0]).T
 
     def get_X_x_range(self,delta_x):
+        ##print('get_X_x_range - WB Tessellation 4P')
         return np.arange(-(self.n_x_plus - 1), self.n_x_plus) * delta_x
 
     cell_map = tr.Property
     def _get_cell_map(self):
+        ##print('cell_map - WB Tessellation 4P')
         delta_x = self.wb_cell.delta_x
         delta_phi = self.wb_cell.delta_phi
         R_0 = self.wb_cell.R_0
@@ -172,12 +180,14 @@ class WBTessellation4P(bu.Model):
 
     n_cells = tr.Property
     def _get_n_cells(self):
+        #print('n_cells - WB Tessellation 4P')
         n_cells, _, _, _, _, _, _ = self.cell_map
         return n_cells
 
     X_Ia_const_change = tr.Property(depends_on='constraint_node_idx, constraint_coord_idx')
     @tr.cached_property
     def _get_X_Ia_const_change(self):
+        #print('X_Ia_const_change - WB Tessellation 4P')
         return np.copy(self.X_Ia_no_constraint)
 
     X_cells_Ia = tr.Property(depends_on='+GEO')
@@ -186,6 +196,7 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cells_Ia(self):
+        #print('X_cells_Ia - WB Tessellation 4P')
 
         delta_x = self.wb_cell.delta_x
         delta_phi = self.wb_cell.delta_phi
@@ -230,6 +241,7 @@ class WBTessellation4P(bu.Model):
     I_cells_Fi = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_I_cells_Fi(self):
+        #print('I_cells_Fi - WB Tessellation 4P')
         I_Fi_cell = self.wb_cell.I_Fi
         n_I_cell = self.wb_cell.n_I
         n_cells = self.n_cells
@@ -241,17 +253,20 @@ class WBTessellation4P(bu.Model):
     ''' Lines-node mapping (uncombined)'''
     @tr.cached_property
     def _get_I_cells_Li(self):
+        #print('I_cells_Li - WB Tessellation 4P')
         return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_Li)
 
     I_cells_V_Li = tr.Property(depends_on='+GEO')
     ''' Valley lines-node mapping (uncombined)'''
     @tr.cached_property
     def _get_I_cells_V_Li(self):
+        #print('I_cells_V_Li - WB Tessellation 4P')
         return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_V_Li)
 
     I_V_Li = tr.Property(depends_on='+GEO')
     ''' Valley lines-node mapping '''
     def _get_I_V_Li(self):
+        #print('I_V_Li - WB Tessellation 4P')
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_V_Li], axis=1), axis=0)
         return I_Li
@@ -260,16 +275,19 @@ class WBTessellation4P(bu.Model):
     ''' Mountain lines-node mapping (uncombined)'''
     @tr.cached_property
     def _get_I_cells_M_Li(self):
+        #print('I_cells_M_Li - WB Tessellation 4P')
         return self._get_shell_lines_uncombined_I_Li(self.wb_cell.I_M_Li)
 
     I_M_Li = tr.Property(depends_on='+GEO')
     ''' Mountain lines-node mapping '''
     def _get_I_M_Li(self):
+        #print('I_M_Li - WB Tessellation 4P')
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_M_Li], axis=1), axis=0)
         return I_Li
 
     def _get_shell_lines_uncombined_I_Li(self, I_Li_cell):
+        #print('_get_shell_lines_uncombined_I_Li - WB Tessellation 4P')
         n_I_cell = self.wb_cell.n_I
         n_cells = self.n_cells
         i_range = np.arange(n_cells) * n_I_cell
@@ -282,6 +300,7 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_X_Ia_no_constraint(self):
+        #print('X_Ia_no_constraint - WB Tessellation 4P')
         idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
         if self.trim_half_cells_along_x:
@@ -295,6 +314,7 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_X_Ia(self):
+        #print('X_Ia - WB Tessellation 4P')
         X_Ia = self.X_Ia_no_constraint
         if self.constraint_coord_idx == 0 and self.constraint_node_idx == 0:
             return X_Ia
@@ -316,12 +336,14 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_X_Ia_trimmed(self):
+        #print('X_Ia_trimmed - WB Tessellation 4P')
         return self.X_Ia[np.sort(np.unique(self.I_Fi.flatten()))] if self.is_trimmed else self.X_Ia
 
     I_Li = tr.Property(depends_on='+GEO')
     '''Lines-node mapping
     '''
     def _get_I_Li(self):
+        #print('I_Li - WB Tessellation 4P')
         _, idx_remap = self.unique_node_map
         I_Li = np.unique(np.sort(idx_remap[self.I_cells_Li], axis=1), axis=0)
         return I_Li
@@ -330,6 +352,7 @@ class WBTessellation4P(bu.Model):
     '''Facet - node mapping
     '''
     def _get_I_Fi_(self):
+        #print('I_Fi_ - WB Tessellation 4P')
         _, idx_remap = self.unique_node_map
         return idx_remap[self.I_cells_Fi]
 
@@ -338,6 +361,7 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_I_Fi_trimmed(self):
+        #print('I_Fi_trimmed - WB Tessellation 4P')
         if self.is_trimmed:
             I_Fi = self.I_Fi
             # Reindexing I_Fi to match the new X_Ia (after trimming)
@@ -359,6 +383,7 @@ class WBTessellation4P(bu.Model):
     '''
     @tr.cached_property
     def _get_I_Fi(self):
+        #print('I_Fi - WB Tessellation 4P')
         _, idx_remap = self.unique_node_map
         I_Fi = idx_remap[self.I_cells_Fi]
 
@@ -383,6 +408,7 @@ class WBTessellation4P(bu.Model):
         return I_Fi
 
     def _get_idx_of_facets_to_trim(self):
+        #print('_get_idx_of_facets_to_trim - WB Tessellation 4P')
         along_y_first_cell = (0, 2, 4)
         along_y_last_cell = (1, 3, 5)
         along_x_first_cell = (4, 5)
@@ -394,6 +420,7 @@ class WBTessellation4P(bu.Model):
     f for cell facet; i facet nodes indices)'''
     @tr.cached_property
     def _get_cells_in_out_xyfi(self):
+        #print('cells_in_out_xyfi - WB Tessellation 4P')
         mesh_elem_num = self.cell_mesh_surf_elem_num
         F_cfi = self.F_cfi
         n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices = self.cells_in_out_info
@@ -405,6 +432,7 @@ class WBTessellation4P(bu.Model):
 
     cell_mesh_surf_elem_num = tr.Property()
     def _get_cell_mesh_surf_elem_num(self):
+        #print('cell_mesh_surf_elem_num - WB Tessellation 4P')
         return self.wb_cell.I_Fi.shape[0]
 
     cells_in_out_xyj = tr.Property(depends_on='+GEO')
@@ -412,6 +440,7 @@ class WBTessellation4P(bu.Model):
     j is cell nodes indices in order)'''
     @tr.cached_property
     def _get_cells_in_out_xyj(self):
+        #print('cells_in_out_xyj - WB Tessellation 4P')
         F_cfi = self.F_cfi
         n_x_in, n_x_out, n_y_in, n_y_out, cells_in_indices, cells_out_indices = self.cells_in_out_info
         I_cj = np.unique(F_cfi.reshape((F_cfi.shape[0], -1)), axis=1)
@@ -423,12 +452,14 @@ class WBTessellation4P(bu.Model):
 
     cell_node_num = tr.Property()
     def _get_cell_node_num(self):
+        #print('cell_node_num - WB Tessellation 4P')
         return self.wb_cell.X_Ia.shape[0]
 
     cells_in_out_info = tr.Property(depends_on='+GEO')
     ''' n_x_in, n_x_out, n_y_in, n_y_out are number of inner and outer cells along x and y'''
     @tr.cached_property
     def _get_cells_in_out_info(self):
+        #print('cells_in_out_info - WB Tessellation 4P')
         n_x_real = 2 * self.n_x_plus - 1
         n_y_real = self.n_phi_plus
         n_x_in = int(n_x_real / 2)
@@ -445,6 +476,7 @@ class WBTessellation4P(bu.Model):
     ''' Convenience indexing where (c cell index, f facet index, i indices of facet's nodes)'''
     @tr.cached_property
     def _get_F_cfi(self):
+        #print('F_cfi - WB Tessellation 4P')
         # c cell index, f facet index, i indices of facet's nodes
         I_Fi = self.I_Fi_
         return I_Fi.reshape((self.n_cells, self.cell_mesh_surf_elem_num, 3))
@@ -452,6 +484,7 @@ class WBTessellation4P(bu.Model):
     node_match_threshold = tr.Property(depends_on='+GEO')
 
     def _get_node_match_threshold(self):
+        #print('node_match_threshold - WB Tessellation 4P')
         min_length = np.min([self.a, self.b, self.c])
         return min_length * 1e-3
 
@@ -462,6 +495,7 @@ class WBTessellation4P(bu.Model):
     is specified in node_match_threshold.
     '''
     def _get_unique_node_map(self):
+        #print('unique_node_map - WB Tessellation 4P')
         # reshape the coordinates in array of segments to the shape (n_N, n_D
         x_0 = self.X_cells_Ia
         # construct distance vectors between every pair of nodes
@@ -500,6 +534,7 @@ class WBTessellation4P(bu.Model):
     I_CDij = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_I_CDij(self):
+        #print('I_CDij - WB Tessellation 4P')
         n_cells, n_ic, n_id, _, x_cell_idx, _, y_cell_idx = self.cell_map
         x_idx, y_idx = x_cell_idx / 2, y_cell_idx / 2
         n_x_, n_y_ = len(x_idx), len(y_idx)
@@ -512,9 +547,11 @@ class WBTessellation4P(bu.Model):
 
     @tr.cached_property
     def _get_is_trimmed(self):
+        #print('is_trimmed - WB Tessellation 4P')
         return self.trim_half_cells_along_y or self.trim_half_cells_along_x
 
     def setup_plot(self, pb):
+        #print('setup_plot - WB Tessellation 4P')
         self.pb = pb
         X_Ia = self.X_Ia_trimmed.astype(np.float32)
         I_Fi = self.I_Fi_trimmed.astype(np.uint32)
@@ -544,6 +581,7 @@ class WBTessellation4P(bu.Model):
             self._add_wireframe_to_fig(pb, X_Ia, I_Fi)
 
     def update_plot(self, pb):
+        #print('update_plot - WB Tessellation 4P')
         X_Ia = self.X_Ia_trimmed.astype(np.float32)
         I_Fi = self.I_Fi_trimmed.astype(np.uint32)
 
@@ -586,6 +624,7 @@ class WBTessellation4P(bu.Model):
                 pb.clear_object(self.NODES_LABELS)
 
     def _add_nodes_labels_to_fig(self, pb, X_Ia):
+        #print('_add_nodes_labels_to_fig - WB Tessellation 4P')
         node_indicies_I = np.arange(X_Ia.shape[0])
         node_indicies_str_list = [str(idx) for idx in node_indicies_I]
         k3d_text = k3d.text(node_indicies_str_list, position=X_Ia.flatten(), label_box=False, size=0.8, color=0x00FF00)
@@ -593,6 +632,7 @@ class WBTessellation4P(bu.Model):
         pb.objects[self.NODES_LABELS] = k3d_text
 
     def _add_wireframe_to_fig(self, pb, X_Ia, I_Fi):
+        #print('_add_wireframe_to_fig - WB Tessellation 4P')
         k3d_mesh_wireframe = k3d.lines(X_Ia,
                                       I_Fi,
                                     shader='mesh',
@@ -602,11 +642,13 @@ class WBTessellation4P(bu.Model):
         pb.objects[self.WIREFRAME] = k3d_mesh_wireframe
 
     def _add_nodes_to_fig(self, pb, X_Ma):
+        #print('_add_nodes_to_fig - WB Tessellation 4P')
         k3d_points = k3d.points(X_Ma, point_size=300)
         pb.objects[self.NODES] = k3d_points
         pb.plot_fig += k3d_points
 
     def _show_or_hide_fig_object(self, pb, show_obj, obj_name, obj_add_fun, obj_update_fun):
+        #print('_show_or_hide_fig_object - WB Tessellation 4P')
         if show_obj:
             if obj_name in pb.objects:
                 obj_update_fun()
@@ -633,6 +675,7 @@ class WBTessellation4P(bu.Model):
     #     return sorted_z_diff_indices, sorted_z_diff_values
 
     def plot_formwork_plan(self, type='folded', ax=None, trimmed=False, gamma=None):
+        #print('plot_formwork_plan - WB Tessellation 4P')
         """
         :param type: 'fixed_base' , 'moving_top', 'pattern', 'folded'
         :param ax:
@@ -670,6 +713,7 @@ class WBTessellation4P(bu.Model):
             return fig, ax
 
     def plot_formwork_points(self, ax=None, type='fixed_base'):
+        #print('plot_formwork_points - WB Tessellation 4P')
         fig = None
         if ax is None:
             fig, ax = plt.subplots()
@@ -686,7 +730,7 @@ class WBTessellation4P(bu.Model):
         z = z - z[z_min_disp_idx]
 
         if type == 'fixed_base':
-            print('Fixed nodes list (fixed on bottom fixed plate):')
+            #print('Fixed nodes list (fixed on bottom fixed plate):')
             supp_points_indices = np.where(z < 0)[0]
             supp_points_values = z[z < 0]
             supp_points_values = supp_points_values - np.min(supp_points_values)
@@ -695,20 +739,20 @@ class WBTessellation4P(bu.Model):
             y = y[supp_points_indices]
             z = supp_points_values
         elif type == 'moving_top':
-            print('Moving nodes list (must be raised to fold the shell):')
+            #print('Moving nodes list (must be raised to fold the shell):')
             moved_points_indices = np.where(z >= 0)[0]
             n = n[moved_points_indices]
             x = x[moved_points_indices]
             y = y[moved_points_indices]
             z = z[moved_points_indices]
         elif type == 'pattern' or type == 'folded':
-            print('Pattern points (in flat unfolded state):')
+            #print('Pattern points (in flat unfolded state):')
             z = z_orig
-        print('-----------------------------------------------------------')
+        #print('-----------------------------------------------------------')
 
-        print('Node num.: Coords. in folded state (x, y, z_diff)')
-        #     print('|Node num. |x|y|')
-        #     print('|:-|:-:|:-:|')
+        #print('Node num.: Coords. in folded state (x, y, z_diff)')
+        #     #print('|Node num. |x|y|')
+        #     #print('|:-|:-:|:-:|')
 
         anno_ratio = int(np.round(0.03 * (np.max(x) - np.min(x))))
         for i, x_i, y_i, z_i in zip(n, x, y, z):
@@ -718,8 +762,8 @@ class WBTessellation4P(bu.Model):
             ax.annotate(str(i), (x_ro, y_ro + anno_ratio), color='red' if z_i > 0 else 'black' if z_i == 0 else 'blue')
             ax.plot(x_i, y_i, 'o', color='red' if z_i > 0 else 'black' if z_i == 0 else 'blue')
 
-            print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
-        #         print('|' + str(i) + '|' + str(x_anno) + '|' + str(y_anno) + '|')
+            #print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
+        #         #print('|' + str(i) + '|' + str(x_anno) + '|' + str(y_anno) + '|')
 
         if fig is not None:
             fig.show()
@@ -729,13 +773,14 @@ class WBTessellation4P(bu.Model):
                              gamma=np.pi/2-0.0001,
                              color='black',
                              view='top'):
+        #print('plot_folding_pattern - WB Tessellation 4P')
         """
         :trimmed (boolean): False: full original tessellation, True: if some cells are trimmed, plot the trimmed tessellation.
         However, the trimmed variant doesn't distinguish valley and mountain folds for now.
         """
         gamma_temp = self.gamma
         self.gamma = gamma
-        print('Plot tessellation with gamma=', round(np.rad2deg(gamma), 2), '°')
+        #print('Plot tessellation with gamma=', round(np.rad2deg(gamma), 2), '°')
         if ax is None:
             fig, ax = plt.subplots()
             fig.set_size_inches(8.5, 8.5)
@@ -769,9 +814,11 @@ class WBTessellation4P(bu.Model):
             return fig, ax
 
     def get_dih_angles(self):
+        #print('get_dih_angles - WB Tessellation 4P')
         return get_dih_angles(self.X_Ia_trimmed, self.I_Fi_trimmed)
 
     def export_fold_file(self, path=None):
+        #print('export_fold_file - WB Tessellation 4P')
         # See https://github.com/edemaine/fold/blob/master/doc/spec.md for fold file specification
         # Viewer: https://edemaine.github.io/fold/examples/foldviewer.html
 
@@ -796,20 +843,22 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('plot_points_diff_btn')
     def plot_points_diff(self, event=None):
+        #print('plot_points_diff - WB Tessellation 4P')
         gamma_tmp = self.gamma
         self.gamma = np.pi / 2 - 0.0001
         X_Ia0 = self.X_Ia_trimmed
         self.gamma = gamma_tmp
         X_Ia1 = self.X_Ia_trimmed
         X_Ia_diff = X_Ia1 - X_Ia0
-        print('Node num.: Coords. in folded state (x_diff, y_diff, z_diff)')
+        #print('Node num.: Coords. in folded state (x_diff, y_diff, z_diff)')
         for i, (x_i, y_i, z_i) in zip(np.arange(X_Ia_diff.shape[0]), X_Ia_diff):
             x_ro = int(np.round(x_i))
             y_ro = int(np.round(y_i))
             z_ro = int(np.round(z_i))
-            print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
+            #print(str(i) + ' :\t(' + str(x_ro) + ',\t' + str(y_ro) + ',\t' + str(z_ro) + ')')
 
     def get_file_name(self):
+        #print('get_file_name - WB Tessellation 4P')
         file_name = 'a_' + str(np.round(self.a, 1)) + '_b_' + str(np.round(self.b, 1))
         file_name += '_c_' + str(np.round(self.c, 1)) + '_gamma_' + str(np.round(self.gamma, 2))
         file_name += '_n_x_' + str(self.n_x_plus) + '_n_phi_' + str(self.n_phi_plus)
@@ -817,10 +866,12 @@ class WBTessellation4P(bu.Model):
 
     @tr.observe('export_obj_file_btn')
     def export_obj_file(self, event=None):
+        #print('export_obj_file - WB Tessellation 4P')
         file_name = self.get_file_name() + '.obj'
         WBGeoUtils.export_obj_file(self, file_name)
 
     @tr.observe('export_fold_file_btn')
     def export_fold_file_btn_click(self, event=None):
+        #print('export_fold_file_btn_click - WB Tessellation 4P')
         file_name = self.get_file_name() + '.fold'
         self.export_fold_file(path=file_name)

@@ -11,6 +11,7 @@ class WBTessellation4PEx(WBTessellation4P):
     wb_cell = bu.Instance(WBCell4ParamEx)
 
     def _wb_cell_default(self):
+        print('wb_cell_default - WBTessellation4PEx')
         wb_cell = WBCell4ParamEx()
         self.update_wb_cell_params(wb_cell)
         return wb_cell
@@ -19,6 +20,7 @@ class WBTessellation4PEx(WBTessellation4P):
     e_x_high = bu.Float(2000)
 
     def update_wb_cell_params(self, wb_cell):
+        print('update_wb_cell_params - WBTessellation4PEx')
         wb_cell.trait_set(
             gamma=self.gamma,
             a=self.a,
@@ -37,6 +39,7 @@ class WBTessellation4PEx(WBTessellation4P):
     )
 
     def _get_idx_of_facets_to_trim(self):
+        print('idx_of_facets_to_trim - WBTessellation4PEx')
         along_y_first_cell = (0, 1, 5, 7)
         along_y_last_cell = (2, 3, 4, 6)
         along_x_first_cell = (6, 7)
@@ -49,6 +52,7 @@ class WBTessellation4PEx(WBTessellation4P):
     '''
     @tr.cached_property
     def _get_X_Ia_no_constraint(self):
+        print('X_Ia_no_constraint - WBTessellation4PEx')
         idx_unique, _ = self.unique_node_map
         X_Ia = self.X_cells_Ia[idx_unique]
         if self.trim_half_cells_along_x:
