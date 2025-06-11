@@ -204,8 +204,8 @@ class WBTessellation4P(bu.Model):
 
         X_Ia_wb_rot = np.copy(self.wb_cell.X_Ia)
         X_Ia_wb_rot[...,2] -= R_0
-        X_cIa = np.array([X_Ia_wb_rot], dtype=np.float_)
-        rotation_axes = np.array([[1, 0, 0]], dtype=np.float_)
+        X_cIa = np.array([X_Ia_wb_rot], dtype=np.float64)
+        rotation_axes = np.array([[1, 0, 0]], dtype=np.float64)
         rotation_angles = self.get_phi_range(delta_phi)
         q = axis_angle_to_q(rotation_axes, rotation_angles)
         X_dIa = qv_mult(q, X_cIa)

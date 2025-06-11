@@ -35,7 +35,7 @@ class WBCell4ParamEx(WBCell4Param):
 
     @tr.cached_property
     def _get_X_Ia(self):
-        print('X_Ia - WBCell4ParamEx')
+        #print('X_Ia - WBCell4ParamEx')
         gamma = self.gamma
         u_2 = self.symb.get_u_2_()
         u_3 = self.symb.get_u_3_()
@@ -48,14 +48,14 @@ class WBCell4ParamEx(WBCell4Param):
             [-self.e_x-self.a, -u_2, u_3],  # U--
             [self.e_x + self.c * np.sin(gamma), 0, self.c * np.cos(gamma)],  # W0+
             [-self.e_x -self.c * np.sin(gamma), 0, self.c * np.cos(gamma)]  # W0-
-        ], dtype=np.float_
+        ], dtype=np.float64
         )
 
     I_Fi = tr.Property
     '''Triangle mapping '''
     @tr.cached_property
     def _get_I_Fi(self):
-        print('I_Fi - WBCell4ParamEx')
+        #print('I_Fi - WBCell4ParamEx')
         return np.array([[0, 2, 1],
                          [1, 2, 3],
                          [0, 1, 4],
@@ -69,6 +69,6 @@ class WBCell4ParamEx(WBCell4Param):
     delta_x = tr.Property(depends_on='+GEO')
     @tr.cached_property
     def _get_delta_x(self):
-        print('delta_x - WBCell4ParamEx')
+        #print('delta_x - WBCell4ParamEx')
         return self.symb.get_delta_x() + 2 * self.e_x
 

@@ -320,7 +320,7 @@ class WBScannedCell(HasTraits):
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
                 [-np.sin(np.pi), np.cos(np.pi), 0],
-                [0, 0, 1]], dtype=np.float_)
+                [0, 0, 1]], dtype=np.float32)
             O_normals_Fa = np.einsum('ab,...a->...b', T_ab, O_normals_Fa)[self.O_centroids_flip]
         return O_normals_Fa
 
@@ -334,7 +334,7 @@ class WBScannedCell(HasTraits):
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
                 [-np.sin(np.pi), np.cos(np.pi), 0],
-                [0, 0, 1]], dtype=np.float_)
+                [0, 0, 1]], dtype=np.float32)
             O_centroids_Fa = np.einsum('ab,...a->...b', T_ab, O_centroids_Fa)[self.O_centroids_flip]
         return O_centroids_Fa
 
@@ -383,7 +383,7 @@ class WBScannedCell(HasTraits):
             ])
 
         for ax, ang in zip(axes, angles):
-            axis_vector = np.zeros((3,), dtype=np.float_)
+            axis_vector = np.zeros((3,), dtype=np.float32)
             axis_vector[ax] = 1
             R = rotation_matrix(axis_vector, ang)
             points = np.einsum('ij,...j->...i', R, points)
@@ -435,7 +435,7 @@ class WBScannedCell(HasTraits):
             T_ab = np.array([
                 [np.cos(np.pi), np.sin(np.pi), 0 ],
                 [-np.sin(np.pi), np.cos(np.pi), 0],
-                [0, 0, 1]], dtype=np.float_)
+                [0, 0, 1]], dtype=np.float32)
             O_crease_nodes_C_Ca = np.einsum('ab,...a->...b', T_ab, O_crease_nodes_C_Ca)[self.O_crease_nodes_flip]
 
         return O_crease_nodes_C_Ca
@@ -463,12 +463,17 @@ class WBScannedCell(HasTraits):
         """Transforms points from the local coordinate system O to the global coordinate system G.
         """
         # Rotate points around the x-axis by alpha
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """        
         alpha = self.alpha
         T_ab = np.array([
             [1, 0, 0],
             [0, np.cos(alpha), -np.sin(alpha)],
             [0, np.sin(alpha), np.cos(alpha)]
-        ], dtype=np.float_)
+        ], dtype=np.float32)
         G_points_X_Na = np.einsum(
             'ab,...a->...b', T_ab, O_points_X_Na
         )
@@ -927,8 +932,8 @@ class WBScannedCell(HasTraits):
             plot += line
 
             if plot_labels:
-                text = k3d.text(text=str(i), position=start + vector / 2, color=color, size=1.0)
-                plot += text
+               text = k3d.text(text=str(i), position=start + vector / 2, color=color, size=1.0)
+               plot += text
 
         return plot
 
