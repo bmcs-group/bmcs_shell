@@ -1,0 +1,2 @@
+# Override global notebook filtering for this repository
+*.ipynb -filter
